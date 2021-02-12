@@ -23,6 +23,7 @@ bootstrap:
       parameters:
         wal_level: replica
         hot_standby: "on"
+        logging_collector: 'on'
         max_wal_senders: 5
         max_replication_slots: 5
         wal_log_hints: "on"
@@ -70,7 +71,7 @@ postgresql:
       username: postgres
       password: vagrant
   parameters:
-    unix_socket_directories: '.'
+    unix_socket_directories: '/var/run/postgresql'
 
 watchdog:
   mode: required # Allowed values: off, automatic, required
