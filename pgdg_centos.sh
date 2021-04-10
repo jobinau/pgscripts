@@ -38,14 +38,16 @@ sed -i 's/PATH=.*/&:\/usr\/pgsql-'"$PGVER"'\/bin/' ~/.bash_profile
 echo 'export PGVER='$PGVER >> ~/.bash_profile
 echo 'export PGBIN=/usr/pgsql-'"$PGVER"'/bin/' >> ~/.bash_profile
 echo 'export PGDATA=/var/lib/pgsql/'"$PGVER"'/data/' >> ~/.bash_profile
+echo 'export PATH=$PGBIN:$PATH' >> ~/.bash_profile
 
 #Contrib
 #sudo $CMD install -y $PG-contrib
 export PGDATA=/var/lib/pgsql/$PGVER/data/
+#Enable checksum
 export PGSETUP_INITDB_OPTIONS="--data-checksums"
 sudo systemctl enable postgresql-$PGVER
 
-sudo /usr/pgsql-$PGVER/bin/postgresql*-setup initdb
+sudo PGSETUP_INITDB_OPTIONS=$PGSETUP_INITDB_OPTIONS /usr/pgsql-$PGVER/bin/postgresql*-setup initdb
 sed -i '/listen_addresses/c\listen_addresses = \x27*\x27' /var/lib/pgsql/$PGVER/data/postgresql.conf
 sed -i -e '/# IPv4 local connections:/a host    replication     replicator      192.168.50.0/24        md5\nhost    all     all      192.168.50.0/24        md5' $PGDATA/pg_hba.conf
 sudo systemctl start postgresql-$PGVER
