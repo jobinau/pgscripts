@@ -46,55 +46,53 @@ doDML = True
 ###############################################################################
 
 import sys,time,psycopg2
+
 def create_conn():
    try:
       conn = psycopg2.connect(connectionString)
    except psycopg2.Error as e:
       print("Unable to connect to database :")
       print(e)
-      sys.exit(1)
+      conn = None
    return conn
 
 if __name__ == "__main__":
    conn = create_conn()
-   if conn is not None:
-      cur = conn.cursor()
-      while True:
-         try:
-            time.sleep(1)
-            if conn is not None:
-               cur = conn.cursor()
+   while True:
+      try:
+         if conn is not None:
+            cur = conn.cursor()
+         else:
+            raise Exception("Connection not ready")
+         # Check if connected to master or replica
+         # NOTE: a recently promoted/demoted server may still be transitioning and
+         #       initially reply with the previous role
+         cur.execute("select pg_is_in_recovery(),inet_server_addr()")
+         rows = cur.fetchone()
+         if (rows[0] == False):
+            print (" Working with:   MASTER - %s" % rows[1]),
+            if doDML:
+               cur.execute("INSERT INTO HATEST VALUES(CURRENT_TIMESTAMP) RETURNING TM")
+               if cur.rowcount == 1 :
+                  conn.commit()
+                  tmrow = str(cur.fetchone()[0])
+                  print ('     Inserted: %s\n' % tmrow)
             else:
-               raise Exception("Connection not ready")
-            #Check connected to master or Slave
-            cur.execute("select pg_is_in_recovery(),inet_server_addr()")
-            rows = cur.fetchone()
-            if (rows[0] == False):
-               print (" Working with:   MASTER - %s" % rows[1]),
-               if doDML:
-                  cur.execute("INSERT INTO HATEST VALUES(CURRENT_TIMESTAMP) RETURNING TM")
-                  if cur.rowcount == 1 :
-                     conn.commit()
-                     tmrow = str(cur.fetchone()[0])
-                     print ('     Inserted: %s\n' % tmrow)
-               else:
-                  print ("No Attempt to insert data")
+               print ("No Attempt to insert data")
+         else:
+            print (" Working with:    REPLICA - %s" % rows[1]),
+            if doDML:
+               cur.execute("SELECT MAX(TM) FROM HATEST")
+               row = cur.fetchone()
+               print ("     Retrieved: %s\n" % str(row[0]))
             else:
-               print (" Working with:    REPLICA - %s" % rows[1]),
-               if doDML:
-                  cur.execute("SELECT MAX(TM) FROM HATEST")
-                  row = cur.fetchone()
-                  print ("     Retrived: %s\n" % str(row[0]))
-               else:
-                  print ("No Attempt to retrive data")
-
-         except:
-            print ("Trying to connect")
-            if conn is not None:
-               conn.close()
-            conn = create_conn()
-            if conn is not None:
-                 cur = conn.cursor()
+               print ("No Attempt to retrieve data")
+         time.sleep(1)
+      except:
+         print ("Trying to connect")
+         if conn is not None:
+            conn.close()
+         conn = create_conn()
 
    conn.close()
 
