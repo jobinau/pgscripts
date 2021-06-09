@@ -37,8 +37,9 @@ sudo chown postgres:postgres /home/postgres
 sudo sh -c 'echo "%postgres ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/postgres'
 sudo chmod 0440 /etc/sudoers.d/postgres
 sudo mkdir /home/postgres/.ssh
-sudo cp ~/.ssh/authorized_keys /home/postgres/.ssh/
+#sudo cp ~/.ssh/authorized_keys /home/postgres/.ssh/
 sudo chown -R postgres:postgres /home/postgres
-sudo su - postgres
-chmod 700 ~/.ssh && chmod 600 ~/.ssh/*
-restorecon -R ~/.ssh
+#sudo su - postgres
+#chmod 700 ~/.ssh && chmod 600 ~/.ssh/*
+#restorecon -R ~/.ssh
+
