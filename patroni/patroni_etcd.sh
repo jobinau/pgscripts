@@ -1,8 +1,15 @@
-ssh-keygen -q -t rsa -N '' -f ~/.ssh/id_rsa <<<y 2>&1 >/dev/null
-ssh-copy-id -o "StrictHostKeyChecking no" pg1
-ssh-copy-id -o "StrictHostKeyChecking no" pg2
+#!/usr/bin/bash
+#Please edit the curNode and otherNodes
+curNode=pg0    #The current node (first node) of the cluster
+otherNodes=(pg1 pg2)   #Other nodes of the cluster
 
-export PG0HOST=`cat /etc/hosts | grep pg0 | awk '{print $1}'`
+ssh-keygen -q -t rsa -N '' -f ~/.ssh/id_rsa <<<y 2>&1 >/dev/null
+for host in "${otherNodes[@]}"
+do
+  ssh-copy-id -o "StrictHostKeyChecking no" $host
+done
+
+export PG0HOST=`cat /etc/hosts | grep $curNode | awk '{print $1}'`
 cat > etcd.conf  << ENDOFFILE
 ETCD_NAME=pg0
 ETCD_INITIAL_CLUSTER="pg0=http://$PG0HOST:2380"
@@ -20,7 +27,7 @@ sudo systemctl enable etcd
 sudo systemctl status etcd
 etcdctl member list
 
-for host in pg1 pg2
+for host in "${otherNodes[@]}"
 do
     echo $host
     sleep 5
