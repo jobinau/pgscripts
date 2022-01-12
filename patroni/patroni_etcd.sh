@@ -1,7 +1,13 @@
 #!/usr/bin/bash
+
+# PRE REQUISITE : 
+#    1. All hostnames should be available in /etc/hosts
+#    2. etcd should be already installed on all nodes
+
 #Please edit the curNode and otherNodes
 curNode=pg0    #The current node (first node) of the cluster
 otherNodes=(pg1 pg2)   #Other nodes of the cluster
+
 
 ssh-keygen -q -t rsa -N '' -f ~/.ssh/id_rsa <<<y 2>&1 >/dev/null
 for host in "${otherNodes[@]}"

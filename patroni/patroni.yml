@@ -27,6 +27,7 @@ bootstrap:
         max_wal_senders: 5
         max_replication_slots: 5
         wal_log_hints: "on"
+        max_wal_size: '10GB'
         archive_mode: "on"
         archive_timeout: 600s
         archive_command: "cp -f %p /home/postgres/archived/%f"
