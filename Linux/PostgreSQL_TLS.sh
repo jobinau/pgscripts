@@ -12,6 +12,7 @@ cp server.crt root.crt
 psql -c "ALTER SYSTEM SET ssl_ca_file = 'root.crt';"
 ##
 
+#Enable ssl
 psql -c "ALTER SYSTEM SET ssl=on;"
 
 ##Add entry to pg_hba.conf (examples)
@@ -44,7 +45,7 @@ select pg_reload_conf();
 ##########################################################
 
 
-################Client Certificates (Under testing)################################
+################Section 2. Client Certificates ################################
 ## Allow client to generate own private keys
 openssl genrsa -out client.key.pem 4096
 
@@ -57,7 +58,7 @@ scp client.csr pg1:
 ##Allow the server to sign the certificate with its private key
 openssl x509 -req -in client.csr -CA $PGDATA/root.crt -CAkey $PGDATA/server.key -out  client.crt -CAcreateserial
 
-##Client can copy the signed certificate and root certificate
+##Copy the signed certificate and root certificate the client
 scp postgres@pg1:client.crt .
 scp postgres@pg1:/var/lib/pgsql/14/data/root.crt .
 
@@ -65,6 +66,7 @@ scp postgres@pg1:/var/lib/pgsql/14/data/root.crt .
 psql "host=pg1 dbname=postgres user=pmm_user sslmode=verify-ca sslcert=client.crt sslkey=client.key.pem sslrootcert=root.crt"
 #verify-full requires server certificate to have the CN as the server hostname which will be specified in the client connection
 #A workaround is to specify the a different hostname in the /etc/hosts which matches the certificate CN
+psql "host=pg1 dbname=postgres user=pmm_user sslmode=verify-full sslcert=client.crt sslkey=client.key.pem sslrootcert=root.crt"
 
 ################Additional Checks##############################
 #Check a Certificate content
