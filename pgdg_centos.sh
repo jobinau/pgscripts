@@ -4,7 +4,14 @@
 ##  Ref : https://www.postgresql.org/download/linux/redhat/
 ###############################################################################
 
-export PGVER=$1
+##Validate the input
+if [[ $input =~ ^[+-]?[0-9]+\.?[0-9]*$ ]]; then 
+   export FULLVER=$1
+   export PGVER=${FULLVER%.*}
+else
+   echo "Please input a valid version"
+   exit 1
+fi
 if [ $USER != "postgres" ]; then
     read -p "Installation as \"postgres\" user with sudo privillage is recommended. Would you like to continue installation as \"$USER\" user? " -n 1 -r
     if [[ $REPLY =~ ^[Nn]$ ]]
@@ -28,7 +35,12 @@ fi
 ARCH=`uname -a | awk '{print $12}'`
 echo "https://download.postgresql.org/pub/repos/yum/$PGVER/redhat/rhel-$OSVER-$ARCH"
 sudo $CMD -y install https://download.postgresql.org/pub/repos/yum/reporpms/EL-$OSVER-$ARCH/pgdg-redhat-repo-latest.noarch.rpm
-sudo $CMD install -y $PG-server --nogpgcheck
+
+if [ $PGVER == $FULLVER ]; then
+    sudo $CMD install -y $PG-server --nogpgcheck
+else
+    sudo $CMD install -y $PG-server-$FULLVER --nogpgcheck
+fi
 ##sudo $CMD groupinstall -y postgresqldbserver$PGVER
 ##Set Enviornment Variables
 export PATH=$PATH:/usr/pgsql-$PGVER/bin
