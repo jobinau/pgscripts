@@ -5,8 +5,8 @@
 ###############################################################################
 
 ##Validate the input
-if [[ $input =~ ^[+-]?[0-9]+\.?[0-9]*$ ]]; then 
-   export FULLVER=$1
+export FULLVER=$1
+if [[ $FULLVER =~ ^[+-]?[0-9]+\.?[0-9]*$ ]]; then 
    export PGVER=${FULLVER%.*}
 else
    echo "Please input a valid version"
