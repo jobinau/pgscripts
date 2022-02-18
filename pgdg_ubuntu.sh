@@ -9,7 +9,16 @@ echo 'export PGBIN=/usr/lib/postgresql/'"$PGVER"'/bin/' >> ~/.bashrc
 echo 'export PATH=$PGBIN:$PATH' >> ~/.bashrc
 echo 'export PGDATA=/var/lib/postgresql/'"$PGVER"'/main/' >> ~/.bashrc
 
+#OS type (Ubuntu or Debian)
+OSTYPE=`cat /etc/*release | grep "^ID=" | cut -b 4-`
+if [ "$OSTYPE" = "debian" ]; then
+    echo "Debian Detected"
+else
+    echo "Ubuntu Detected"
+fi
+
 ##Installation
+sudo apt-get install -y curl ca-certificates gnupg
 wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
 sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
 sudo apt-get update
