@@ -10,6 +10,8 @@
 # 1) PostgreSQL Python connector python3-psycopg2
 # 2) Target table HATEST must have been created in advance:
 #    CREATE TABLE HATEST (TM TIMESTAMP);
+#    CREATE UNIQUE INDEX idx_hatext ON hatest (tm desc);
+# 3) Monitor replication using : SELECT tm FROM hatest ORDER BY tm DESC LIMIT 1; 
 
 import sys
 
