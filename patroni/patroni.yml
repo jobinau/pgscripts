@@ -57,7 +57,7 @@ bootstrap:
         - createrole
         - createdb
 
-#PostgreSQL parameters for the local node
+#PostgreSQL parameters for the local node. values in this section will have higher priority than from the DCS
 postgresql:
   listen: 0.0.0.0:5432
   connect_address: pg0:5432
