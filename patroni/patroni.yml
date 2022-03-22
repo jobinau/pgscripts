@@ -57,6 +57,7 @@ bootstrap:
         - createrole
         - createdb
 
+#PostgreSQL parameters for the local node
 postgresql:
   listen: 0.0.0.0:5432
   connect_address: pg0:5432
