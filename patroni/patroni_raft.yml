@@ -8,7 +8,9 @@ restapi:
 raft:
   data_dir: /var/lib/raft
   self_addr: pg0:5010
-  partner_addrs: pg1:5010,pg2:5010
+  partner_addrs: 
+    - pg1:5010
+    - pg2:5010
 
 bootstrap:
   # this section will be written into Etcd:/<namespace>/<scope>/config after initializing new cluster
