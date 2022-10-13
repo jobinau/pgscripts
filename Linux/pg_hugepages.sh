@@ -10,7 +10,7 @@
 #       OPTIONS:  Any options on the command line will be passed to psql
 #  REQUIREMENTS:  ---
 #          BUGS:  ---
-#         NOTES:  ---
+#         NOTES:  Expects 'which' utility : sudo yum install which
 #        AUTHOR:  Kirk L. Roybal (), Kirk@timescale.com
 #       COMPANY:  Timescale
 #       VERSION:  1.0
