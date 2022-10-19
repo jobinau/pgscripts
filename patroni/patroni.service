@@ -13,6 +13,7 @@ Group=postgres
 # StandardOutput=syslog
 
 ExecStart=/usr/local/bin/patroni /etc/patroni/patroni.yml
+ExecReload=/bin/kill -HUP $MAINPID
 
 # only kill the patroni process, not it's children, so it will gracefully stop postgres
 KillMode=process
