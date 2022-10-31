@@ -16,7 +16,6 @@ restapi:
   keyfile: /etc/patroni/pg0.key
   cafile: /etc/patroni/ca.crt
   verify_client: required
-  allowlist_include_members: true
 
 ctl:
   insecure: false
