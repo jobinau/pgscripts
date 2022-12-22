@@ -6,7 +6,7 @@ restapi:
   connect_address: pg0:8008
 
 etcd:
-  host: pg0:2379
+  host: pg0:2379,pg1:2379,pg2:2379
 
 bootstrap:
   # this section will be written into Etcd:/<namespace>/<scope>/config after initializing new cluster
