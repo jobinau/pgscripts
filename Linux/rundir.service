@@ -1,0 +1,15 @@
+[Unit]
+Description=rundir
+After=network.target
+
+[Service]
+PermissionsStartOnly=True
+User=postgres
+Group=postgres
+RuntimeDirectory=barman
+RuntimeDirectoryMode=0775
+ExecStart=/bin/true
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
