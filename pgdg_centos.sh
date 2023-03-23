@@ -32,7 +32,7 @@ if [ $OSVER -ge "8" ]; then
 else
     CMD=yum
 fi
-ARCH=`uname -a | awk '{print $12}'`
+ARCH=`uname -i`
 echo "https://download.postgresql.org/pub/repos/yum/$PGVER/redhat/rhel-$OSVER-$ARCH"
 sudo $CMD -y install https://download.postgresql.org/pub/repos/yum/reporpms/EL-$OSVER-$ARCH/pgdg-redhat-repo-latest.noarch.rpm
 
