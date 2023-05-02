@@ -17,8 +17,8 @@ done
 
 export PG0HOST=`cat /etc/hosts | grep $curNode | awk '{print $1}'`
 cat > etcd.conf  << ENDOFFILE
-ETCD_NAME=pg0
-ETCD_INITIAL_CLUSTER="pg0=http://$PG0HOST:2380"
+ETCD_NAME=$curNode
+ETCD_INITIAL_CLUSTER="$curNode=http://$PG0HOST:2380"
 ETCD_INITIAL_CLUSTER_TOKEN="devops_token"
 ETCD_INITIAL_CLUSTER_STATE="new"
 ETCD_INITIAL_ADVERTISE_PEER_URLS="http://$PG0HOST:2380"
