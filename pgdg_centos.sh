@@ -41,6 +41,9 @@ if [ $PGVER == $FULLVER ]; then
 else
     sudo $CMD install -y $PG-server-$FULLVER --nogpgcheck
 fi
+if [ $PGVER -ge "15" ]; then
+   sudo $CMD install -y epel-release
+fi
 ##sudo $CMD groupinstall -y postgresqldbserver$PGVER
 ##Set Enviornment Variables
 export PATH=$PATH:/usr/pgsql-$PGVER/bin
