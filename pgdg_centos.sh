@@ -36,14 +36,16 @@ ARCH=`uname -i`
 echo "https://download.postgresql.org/pub/repos/yum/$PGVER/redhat/rhel-$OSVER-$ARCH"
 sudo $CMD -y install https://download.postgresql.org/pub/repos/yum/reporpms/EL-$OSVER-$ARCH/pgdg-redhat-repo-latest.noarch.rpm
 
+if [ $PGVER -ge "15" ]; then
+   sudo $CMD install -y epel-release
+fi
+
 if [ $PGVER == $FULLVER ]; then
     sudo $CMD install -y $PG-server --nogpgcheck
 else
     sudo $CMD install -y $PG-server-$FULLVER --nogpgcheck
 fi
-if [ $PGVER -ge "15" ]; then
-   sudo $CMD install -y epel-release
-fi
+
 ##sudo $CMD groupinstall -y postgresqldbserver$PGVER
 ##Set Enviornment Variables
 export PATH=$PATH:/usr/pgsql-$PGVER/bin
