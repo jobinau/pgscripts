@@ -32,6 +32,10 @@ bootstrap:
         archive_mode: "on"
         archive_timeout: 600s
         archive_command: "cp -f %p /home/postgres/archived/%f"
+      pg_hba:
+      - local all all          peer
+      - host replication replicator 0.0.0.0/0 md5
+      - host all all 0.0.0.0/0 md5
       recovery_conf:
         restore_command: cp /home/postgres/archived/%f %p
 
