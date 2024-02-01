@@ -1,4 +1,4 @@
-
+sudo apt install -y curl wget
 ##Environment Variables
 export PGVER=$1
 export PG=postgresql$PGVER
