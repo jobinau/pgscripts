@@ -1,12 +1,12 @@
 scope: stampede
-name: pg0
+name: pg1
 
 restapi:
   listen: 0.0.0.0:8008
-  connect_address: pg0:8008
+  connect_address: pg1:8008
 
 etcd3:
-  hosts: pg0:2379,pg1:2379,pg2:2379
+  hosts: pg1:2379,pg1:2379,pg2:2379
   #Even though Patroni has auto discovery of all etcd nodes, patronictl don't work that way.
 
 bootstrap:
@@ -32,45 +32,32 @@ bootstrap:
         archive_mode: "on"
         archive_timeout: 600s
         archive_command: "cp -f %p /home/postgres/archived/%f"
-        #archive_command: pgbackrest --stanza=pg0app --log-level-stderr=info archive-push %p
+        #archive_command: pgbackrest --stanza=pg1app --log-level-stderr=info archive-push %p
 
       pg_hba:
       - local all all          peer
-      - host replication replicator 0.0.0.0/0 md5
-      - host all all 0.0.0.0/0 md5
+      - host replication replicator 127.0.0.1/32 trust
+      - host replication replicator 192.0.0.0/8 scram-sha-256
+      - host all all 0.0.0.0/0 scram-sha-256
       recovery_conf:
         restore_command: cp /home/postgres/archived/%f %p
-        #restore_command: pgbackrest --stanza=pg0app archive-get %f "%p"
+        #restore_command: pgbackrest --stanza=pg1app archive-get %f "%p"
 
   # some desired options for 'initdb'
   initdb:  # Note: It needs to be a list (some options need values, others are switches)
   - encoding: UTF8
   - data-checksums
 
-  pg_hba:  # Add following lines to pg_hba.conf after running 'initdb'
-  - host replication replicator 192.168.50.1/24 md5
-  - host replication replicator 127.0.0.1/32 trust
-  - host all all 192.168.50.1/24 md5
-  - host all all 0.0.0.0/0 md5
-#  - hostssl all all 0.0.0.0/0 md5
-
-  # Additional script to be launched after initial cluster creation (will be passed the connection URL as parameter)
+# Additional script to be launched after initial cluster creation (will be passed the connection URL as parameter)
 # post_init: /usr/local/bin/setup_cluster.sh
 
-  # Some additional users users which needs to be created after initializing new cluster
-  users:
-    admin:
-      password: admin
-      options:
-        - createrole
-        - createdb
 
 #PostgreSQL parameters for the local node. values in this section will have higher priority than from the DCS
 postgresql:
   listen: 0.0.0.0:5432
-  connect_address: pg0:5432
-  data_dir: "/var/lib/pgsql/12/data"
-  bin_dir: "/usr/pgsql-12/bin"
+  connect_address: pg1:5432
+  data_dir: "/var/lib/pgsql/16/data"
+  bin_dir: "/usr/pgsql-16/bin"
 #  config_dir:
   pgpass: /tmp/pgpass0
   authentication:
@@ -84,7 +71,7 @@ postgresql:
     unix_socket_directories: '/var/run/postgresql'
 
 watchdog:
-  mode: required # Allowed values: off, automatic, required
+  mode: off # Allowed values: off, automatic, required
   device: /dev/watchdog
   safety_margin: 5
 
