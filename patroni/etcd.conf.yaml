@@ -1,0 +1,11 @@
+name: 'pg1'
+data-dir: /var/lib/etcd
+initial-advertise-peer-urls: http://192.168.96.2:2380
+listen-peer-urls: http://192.168.96.2:2380
+advertise-client-urls: http://192.168.96.2:2379
+listen-client-urls: http://192.168.96.2:2379,http://localhost:2379
+initial-cluster: pg1=http://192.168.96.2:2380,pg2=http://192.168.96.3:2380,pg3=http://192.168.96.4:2380
+initial-cluster-state: new
+initial-cluster-token: pgcluster
+auto-compaction-retention: '15m'
+auto-compaction-mode: 'periodic'
