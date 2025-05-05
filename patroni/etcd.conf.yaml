@@ -9,3 +9,8 @@ initial-cluster-state: new
 initial-cluster-token: pgcluster
 auto-compaction-retention: '15m'
 auto-compaction-mode: 'periodic'
+##Pending for JIRA
+#snapshot-count: 100
+#max-wals: 2
+#auto-compaction-mode: revision
+#auto-compaction-retention: '100'
