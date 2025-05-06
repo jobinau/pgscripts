@@ -30,6 +30,7 @@ sed -i '/listen_addresses/c\listen_addresses = \x27*\x27' /etc/postgresql/$PGVER
 sed -i '/max_wal_senders/c\max_wal_senders = 5' /etc/postgresql/$PGVER/main/postgresql.conf
 sed -i '/^#logging_collector/c\logging_collector = on' /etc/postgresql/$PGVER/main/postgresql.conf
 sed -i '/^#hot_standby/c\hot_standby = on' /etc/postgresql/$PGVER/main/postgresql.conf
+sed -i "/log_filename/c\log_filename='postgresql-%a.log'" /etc/postgresql/$PGVER/main/postgresql.conf
 
 ##Direct command
 /usr/lib/postgresql/$PGVER/bin/pg_ctl status -D /var/lib/postgresql/$PGVER/main -o '--config-file=/etc/postgresql/$PGVER/main/postgresql.conf'
