@@ -59,7 +59,7 @@ postgresql:
   data_dir: "/var/lib/pgsql/16/data"
   bin_dir: "/usr/pgsql-16/bin"
 #  config_dir:
-  pgpass: /tmp/pgpass0
+  pgpass: /var/lib/pgsql/pgpass0
   authentication:
     replication:
       username: replicator
