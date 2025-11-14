@@ -1,8 +1,10 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 #####################################################################
-# Demonstrates a connection pool can multiplex hundreds of
-# threads onto a very few database connections.
+# Demonstrates a connection pool can multiplex hundreds of threads onto a very few database connections +
+# Application side connection routing +
+# Pool is prepared at the begining of application +
+# Pool automatically recreated if there is swichover
 #####################################################################
 
 import threading
@@ -12,7 +14,7 @@ from psycopg2 import pool
 
 # --- Configuration ---
 # Replace these with your actual PostgreSQL connection details.
-DSN = "postgresql://postgres:vagrant@localhost/postgres?application_name=testapp"
+DSN = "postgresql://postgres:vagrant@pg0,pg1,pg2/postgres?application_name=testapp&target_session_attrs=read-write"
 
 # --- Database Setup Instructions ---
 # Before running this script, please connect to your PostgreSQL database
@@ -44,7 +46,8 @@ def worker_thread_task(thread_id):
     """
     print(f"Thread-{thread_id}: Starting...")
     while True:
-        # Try to acquire a semaphore with a 2-second timeout.
+        # Try to acquire a semaphore with a 2-second timeout. 
+        # Semaphore is required only for timeout. without which thread will be waiting forever.
         # This simulates waiting for a free connection slot with a limit.
         got_slot = pool_semaphore.acquire(timeout=2)
 
