@@ -4,23 +4,14 @@
 apiVersion: postgres-operator.crunchydata.com/v1beta1
 kind: PostgresCluster
 metadata:
-  annotations:
-    kubectl.kubernetes.io/last-applied-configuration: |
-      {"apiVersion":"postgres-operator.crunchydata.com/v1beta1","kind":"PostgresCluster","metadata":{"annotations":{},"name":"hippo-s3","namespace":"crunchypgo"},"spec":{"backups":{"pgbackrest":{"configuration":[{"secret":{"name":"pgo-s3-creds"}}],"global":{"repo1-path":"/pgbackrest/postgres-operator/hippo-s3/repo1","repo1-s3-uri-style":"path"},"repos":[{"name":"repo1","s3":{"bucket":"pg2","endpoint":"localhost:9000","region":""}}]}},"instances":[{"dataVolumeClaimSpec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"1Gi"}}}}],"postgresVersion":17}}
-  creationTimestamp: "2025-12-13T14:16:03Z"
-  finalizers:
-  - postgres-operator.crunchydata.com/finalizer
-  generation: 11
   name: hippo-s3
   namespace: crunchypgo
-  resourceVersion: "339833"
-  uid: 565b04d3-2baf-4b20-a43e-f8ff6c451cce
 spec:
   backups:
     pgbackrest:
       configuration:
       - secret:
-          name: pgo-s3-creds
+          name: pgo-s3-creds    #kubectl get secret pgo-s3-creds -o go-template='{{range $k,$v := .data}}{{"\n"}}{{$k}}: {{$v | base64decode}}{{end}}{{"\n"}}'
       global:
         archive-async: "y"
         compress-type: gz
@@ -64,71 +55,3 @@ spec:
         type: LoadBalancer
   service:
     type: LoadBalancer
-status:
-  conditions:
-  - lastTransitionTime: "2025-12-16T04:59:51Z"
-    message: pgBackRest replica create repo is ready for backups
-    observedGeneration: 11
-    reason: StanzaCreated
-    status: "True"
-    type: PGBackRestReplicaRepoReady
-  - lastTransitionTime: "2025-12-16T05:00:06Z"
-    message: pgBackRest replica creation is now possible
-    observedGeneration: 11
-    reason: RepoBackupComplete
-    status: "True"
-    type: PGBackRestReplicaCreate
-  - lastTransitionTime: "2025-12-18T06:30:30Z"
-    message: Deployment has minimum availability.
-    observedGeneration: 11
-    reason: MinimumReplicasAvailable
-    status: "True"
-    type: ProxyAvailable
-  databaseRevision: cf65676f7
-  instances:
-  - name: "00"
-    readyReplicas: 2
-    replicas: 2
-    updatedReplicas: 2
-  monitoring:
-    exporterConfiguration: 559c4c97d6
-  observedGeneration: 11
-  patroni:
-    systemIdentifier: "7583346386943422552"
-  pgbackrest:
-    repos:
-    - name: repo1
-      replicaCreateBackupComplete: true
-      repoOptionsHash: f5c58f6bf
-      stanzaCreated: true
-    scheduledBackups:
-    - cronJobName: hippo-s3-repo1-full
-      failed: 7
-      repo: repo1
-      startTime: "2025-12-18T02:57:26Z"
-      type: full
-    - completionTime: "2025-12-18T06:24:07Z"
-      cronJobName: hippo-s3-repo1-full
-      failed: 3
-      repo: repo1
-      startTime: "2025-12-18T05:18:41Z"
-      succeeded: 1
-      type: full
-    - completionTime: "2025-12-18T06:24:14Z"
-      cronJobName: hippo-s3-repo1-full
-      repo: repo1
-      startTime: "2025-12-18T06:24:07Z"
-      succeeded: 1
-      type: full
-    - completionTime: "2025-12-18T06:30:11Z"
-      cronJobName: hippo-s3-repo1-full
-      repo: repo1
-      startTime: "2025-12-18T06:30:00Z"
-      succeeded: 1
-      type: full
-  proxy:
-    pgBouncer:
-      postgresRevision: f7969986
-      readyReplicas: 3
-      replicas: 3
-  usersRevision: 695b569c5f
