@@ -1,0 +1,76 @@
+apiVersion: pgv2.percona.com/v2
+kind: PerconaPGCluster
+metadata:
+  name: target-cluster-percona
+  annotations:
+    pgv2.percona.com/patroni-version: "4"
+spec:
+  crVersion: 2.8.0
+  image: docker.io/percona/percona-distribution-postgresql:17.6-1
+  imagePullPolicy: Always
+  postgresVersion: 17
+
+  instances:
+  - name: instance1
+    replicas: 3
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 1
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                postgres-operator.crunchydata.com/data: postgres
+            topologyKey: kubernetes.io/hostname
+    dataVolumeClaimSpec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 10Gi
+  proxy:
+    pgBouncer:
+      replicas: 3
+      image: docker.io/percona/percona-pgbouncer:1.24.1-1
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  postgres-operator.crunchydata.com/role: pgbouncer
+              topologyKey: kubernetes.io/hostname
+  dataSource:
+    pgbackrest:
+      stanza: db
+      configuration:
+        - secret:
+            name: pgo-s3-creds
+      global:
+        repo1-path: /pgbackrest/postgres-operator/hippo-s3/repo1
+        repo1-s3-uri-style: path
+        repo1-s3-verify-tls: "n"
+      repo:
+        name: repo1
+        s3:
+          bucket: pg2
+          endpoint: 192.168.48.1:9000
+          region:  us-east-1
+  backups:
+    pgbackrest:
+      repos:
+            # AWS pgBackrest repo, which is used by source-cluster
+        - name: repo1
+          s3:
+            bucket: pg2
+            endpoint: 192.168.48.1:9000
+            region: us-east-1
+      image: docker.io/percona/percona-pgbackrest:2.56.0-1
+      configuration:
+        - secret:
+            name: pgo-s3-creds
+      global:
+        repo1-path: /pgbackrest/postgres-operator/hippo-s3/repo2
+        repo1-s3-uri-style: path
+        repo1-s3-verify-tls: "n"
