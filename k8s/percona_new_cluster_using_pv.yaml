@@ -9,10 +9,9 @@ spec:
   image: docker.io/percona/percona-distribution-postgresql:17.6-1
   imagePullPolicy: Always
   postgresVersion: 17
-
   instances:
   - name: instance1
-    replicas: 3
+    replicas: 1
     affinity:
       podAntiAffinity:
         preferredDuringSchedulingIgnoredDuringExecution:
@@ -25,6 +24,9 @@ spec:
     dataVolumeClaimSpec:
       accessModes:
       - ReadWriteOnce
+      selector:
+        matchLabels:
+          pgo-postgres-cluster: percona-postgres-operator-cluster
       resources:
         requests:
           storage: 10Gi
@@ -41,22 +43,6 @@ spec:
                 matchLabels:
                   postgres-operator.crunchydata.com/role: pgbouncer
               topologyKey: kubernetes.io/hostname
-  dataSource:
-    pgbackrest:
-      stanza: db
-      configuration:
-        - secret:
-            name: pgo-s3-creds                                              #Credential to connect to s3 bucket
-      global:
-        repo1-path: /pgbackrest/postgres-operator/hippo-s3/repo1            #Existing repo path  where backups are available
-        repo1-s3-uri-style: path
-        repo1-s3-verify-tls: "n"
-      repo:
-        name: repo1
-        s3:
-          bucket: pg2
-          endpoint: 192.168.48.1:9000                                       #Tested with local Minio
-          region:  us-east-1
   backups:
     pgbackrest:
       repos:
