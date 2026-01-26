@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     // --- Configuration ---
-    let db_url = "host=localhost user=postgres password=vagrant dbname=postgres";
+    let db_url = "host=/var/run/postgresql user=postgres password=vagrant dbname=postgres";
     //use host=localhost OR host=/var/run/postgresql to switch between TCP and local socket
     let num_tasks = 20;            // Concurrent workers
     let test_duration = Duration::from_secs(60);
