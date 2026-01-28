@@ -1,0 +1,8 @@
+[package]
+name = "mysqlconnpersec"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+mysql_async = "0.34" # Handles the MySQL protocol
