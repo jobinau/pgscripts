@@ -1,4 +1,4 @@
-# PROGRAM TO TEST POSTGRESQLS ABILITY TO ACCEPT CONNECTION STORM
+# PROGRAM TO TEST MYSQL's ABILITY TO ACCEPT CONNECTION STORM
 
 ## Build
 ```
@@ -7,5 +7,5 @@ cargo build --release
 
 ## RUN
 ```
-./target/release/connpersec
+./target/release/mysqlconnpersec
 ```
