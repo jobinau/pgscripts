@@ -2,7 +2,7 @@
 
 -- 1. Set a random integer range.
 -- The max value x'40000' (hex) is approx 262144. Adjust '300000' to match your actual data volume.
--- pgbench -f workload_bookings_ref_random.sql -c 10 -j 2 -T 60 demo
+-- pgbench -f workload_bookings_ref.sql -c 10 -j 2 -T 60 demo
 \set r_id random(1, 300000)
 
 BEGIN;
