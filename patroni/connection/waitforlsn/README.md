@@ -7,7 +7,8 @@ Compares two ways for an application to decide that a transaction is complete:
   returns `success` on the standby.
 
 The app keeps two deadpool-postgres pools (primary and standby). See [CLAUDE.md](CLAUDE.md)
-for the full idea, design notes and findings.
+for the full idea, design notes and findings, and [PARAMETERS.md](PARAMETERS.md) for
+every program option, the output format and the helper scripts' settings.
 
 ## Local environment
 
@@ -30,16 +31,31 @@ target/release/waitforlsn --mode waitfor --wait-mode standby_flush --tasks 32 --
 # Append a summary line to a CSV
 target/release/waitforlsn --mode waitfor --output results/runs.csv --label "wwd=10ms"
 
-target/release/waitforlsn --help     # all options
+target/release/waitforlsn --help     # all options (full reference: PARAMETERS.md)
 ```
+
+Progress lines and the summary show pool usage for both pools: connections in use
+(now/avg/max of `max_size`) and tasks waiting for a connection. Sampled every
+`--pool-sample-interval` (default 10ms).
 
 Connection strings come from `--primary` / `--standby` or `PRIMARY_DSN` / `STANDBY_DSN`.
 
 `wal_writer_delay` sets the floor of T2 latency. Change it at runtime with:
 
 ```bash
-scripts/set_wal_writer_delay.sh 10ms
+scripts/set_wal_writer_delay.sh 10ms        # wal_writer_delay only
+scripts/set_wal_writer_delay.sh 10ms 0      # plus wal_writer_flush_after=0 (fastest T2, see DESIGN.md D2)
 ```
+
+## Source documentation
+
+```bash
+make doc         # HTML docs in target/doc/waitforlsn/index.html (front page = DESIGN.md)
+make lint        # clippy; fails if any item lacks a doc comment
+make test        # unit tests
+```
+
+[DESIGN.md](DESIGN.md) explains the overall flow and the reasoning behind each design decision.
 
 ## Full matrix
 

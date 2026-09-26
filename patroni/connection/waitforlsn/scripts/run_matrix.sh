@@ -10,7 +10,9 @@ export PRIMARY_DSN="${PRIMARY_DSN:-host=localhost port=5433 user=postgres passwo
 export STANDBY_DSN="${STANDBY_DSN:-host=localhost port=5434 user=postgres password=postgres dbname=postgres}"
 DURATION="${DURATION:-60s}"
 TASKS="${TASKS:-1 8 32 64 128}"
-WWD="${WWD:-10ms 50ms 200ms}"                       # wal_writer_delay values for T2
+# WAL writer settings for T2: "delay" or "delay:flush_after" (flush_after=0 wakes the WAL
+# writer on every async commit, see DESIGN.md D2)
+WWD="${WWD:-10ms 50ms 200ms 200ms:0}"
 WAIT_MODES="${WAIT_MODES:-standby_write standby_flush standby_replay}"
 PRIMARY_POOL_MAX="${PRIMARY_POOL_MAX:-32}"
 OUT="${OUT:-results/matrix-$(date +%Y%m%d-%H%M%S).csv}"
@@ -30,7 +32,10 @@ run() {
 
 first=1
 for wwd in $WWD; do
-    scripts/set_wal_writer_delay.sh "$wwd"
+    delay="${wwd%%:*}"
+    flush_after="1MB"                              # PostgreSQL default
+    [[ "$wwd" == *:* ]] && flush_after="${wwd#*:}"
+    scripts/set_wal_writer_delay.sh "$delay" "$flush_after"
     for t in $TASKS; do
         pp=$(( t < PRIMARY_POOL_MAX ? t : PRIMARY_POOL_MAX ))
         sp=$t   # every waiting task holds a standby connection for the whole wait

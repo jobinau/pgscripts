@@ -1,0 +1,145 @@
+To: pgsql-hackers@lists.postgresql.org
+Cc: (keep everyone from the thread: reply-all)
+Subject: Re: test: avoid redundant standby catchup in 049_wait_for_lsn
+Attachments: repro.sh, find_boundary.sql
+
+Hi Xuneng, hackers,
+
+I ran into the same pg_current_wal_insert_lsn() page-boundary problem
+independently, outside the regression tests, while evaluating WAIT FOR
+for read-your-writes on a standby. The application follows the WAIT
+docs example: synchronous_commit = off on the primary, autocommit write,
+SELECT pg_current_wal_insert_lsn() after it returns, then WAIT FOR LSN
+on the standby. I'd like to add some data points in support of your
+patches, and a suggestion.
+
+1. Impact on an application workload
+------------------------------------
+
+Setup: PostgreSQL 19beta4, primary + one asynchronous streaming standby
+(Docker, same host). Closed-loop clients, each doing: autocommit INSERT
+on the primary, SELECT pg_current_wal_insert_lsn(), then
+WAIT FOR LSN '...' WITH (MODE ..., TIMEOUT ..., NO_THROW) on the standby.
+
+- About 1 in 2000 waits never succeeded and ran to the full TIMEOUT
+  (standby_flush and standby_replay; 8 of ~16k waits each, 3s timeout,
+  4 clients).
+- In the run where I logged the LSNs, all 4 clients timed out on the
+  same target, 0/0CAE2018, i.e. page offset 24. Once every client is
+  waiting, nobody writes the WAL that would move the standby past the
+  page header, so a closed-loop application stalls completely.
+- The stall is not bounded by background WAL in practice. With
+  TIMEOUT '20s' the stuck waits ran the full 20 seconds. 60s runs,
+  standby_replay, wal_writer_flush_after = 0, wal_writer_delay = 10ms:
+
+    clients  target LSN                  completed  timeouts  max wait
+    -------  --------------------------  ---------  --------  --------
+          1  pg_current_wal_insert_lsn()      5616         1   20.56 s
+          1  corrected (see 5.)              11364         0    0.48 s
+          4  pg_current_wal_insert_lsn()     12683         4   20.56 s
+          4  corrected (see 5.)              30466         0    0.02 s
+
+- With the target mapped back to the page boundary on the client side:
+  0 timeouts in ~83k waits.
+
+For the application this is more than a latency blip: the transaction
+is committed on the primary but the wait says "timeout", so it has to
+be treated as an unconfirmed outcome.
+
+2. Standalone reproducer
+------------------------
+
+Attached (psql only, primary + standby, otherwise idle cluster). It
+commits small transactions until pg_current_wal_insert_lsn() is 24 bytes
+into a page, shows with pg_walinspect that the last record ends at the
+boundary, and waits in every mode. A boundary hit takes a few hundred
+commits (191 to 1008 in my runs). Output on 19beta4:
+
+  last record: 0/0EE37FD8 -> 0/0EE38000  Transaction COMMIT
+  pg_current_wal_insert_lsn = 0/0EE38018, pg_current_wal_flush_lsn = 0/0EE38000
+
+  WAIT FOR LSN '0/0EE38018' (TIMEOUT 2s, NO_THROW):
+    primary_flush  (primary, same session)  timeout
+    standby_write                            timeout
+    standby_flush                            timeout
+    standby_replay                           timeout
+  standby receive = replay = 0/0EE38000
+
+  WAIT FOR LSN '0/0EE38000' (the boundary): success in every mode
+
+  A standby_replay waiter on 0/0EE38018 returned 2 ms after an
+  unrelated INSERT committed on the primary, 3 s after it started.
+
+primary_flush reproduces on a single server, no standby needed.
+
+Background WAL (bgwriter's running-xacts record, checkpoints,
+opportunistic pruning when new sessions start) can release the waiters,
+which makes the problem intermittent and easy to miss. The script
+checks that no WAL arrived while it waited, and retries if some did.
+
+3. Code references (REL_19_STABLE, a630000c59c)
+-----------------------------------------------
+
+- pg_current_wal_insert_lsn() -> GetXLogInsertRecPtr() ->
+  XLogBytePosToRecPtr() (xlogfuncs.c:335, xlog.c:9649). At a page
+  boundary this returns the position after the next page header.
+- All four modes compare against end-of-record positions: replay's
+  lastReplayedEndRecPtr, walreceiver write/flush, GetFlushRecPtr()
+  (GetCurrentLSNForWaitType(), xlogwait.c:105). None of them can take
+  a value in (boundary, boundary + header], so such a target is only
+  reached when the next, unrelated record arrives.
+- The pitfall is already known elsewhere: walsender.c uses
+  GetXLogInsertEndRecPtr() instead of GetXLogInsertRecPtr() in two
+  places, one with the comment "... can return a position past the page
+  header when the last record ends at a page boundary, which can never
+  match a record end and would needlessly stall the subscriber's wait";
+  see also d927b4bd97c and b1f14c96720.
+- doc/src/sgml/ref/wait.sgml currently recommends
+  pg_current_wal_insert_lsn() precisely for the
+  synchronous_commit = off case, so users following the docs will hit
+  this.
+
+4. Suggestions
+--------------
+
+a) +1 for 0001/0002. WAIT FOR is new in 19 and its documentation points
+   users at the function that triggers this, so it would be good to
+   settle it before 19.0, perhaps as a PG 19 open item. Even if the new
+   function has to wait, the doc example could be changed or get a
+   caveat for 19.
+
+b) Could WAIT FOR itself also tolerate such targets? When the target
+   points exactly past a page header (offset SizeOfXLogShortPHD, or
+   SizeOfXLogLongPHD on the first page of a segment), treat it as the
+   page boundary. As far as I can see this is equivalent for all four
+   modes: no record ends in (boundary, boundary + header], so waiting
+   for the boundary can never return before the records the caller
+   meant have been written, flushed or replayed. It would protect
+   applications that already follow the 19 docs, and LSNs taken from
+   pg_current_wal_insert_lsn() by drivers or tools that won't switch
+   to a new function soon.
+
+5. Client-side workaround (what I use for now)
+----------------------------------------------
+
+  CREATE FUNCTION wal_insert_end_lsn(l pg_lsn DEFAULT pg_current_wal_insert_lsn())
+  RETURNS pg_lsn LANGUAGE sql STABLE AS $$
+    SELECT CASE
+      WHEN (l - '0/0'::pg_lsn) % pg_size_bytes(current_setting('wal_segment_size'))
+           < current_setting('wal_block_size')::int     -- first page of a segment
+      THEN CASE WHEN (l - '0/0'::pg_lsn) % current_setting('wal_block_size')::int = 40
+                THEN l - 40 ELSE l END
+      ELSE CASE WHEN (l - '0/0'::pg_lsn) % current_setting('wal_block_size')::int = 24
+                THEN l - 24 ELSE l END
+    END
+  $$;
+
+It hard-codes the header sizes of a 64-bit build, which is exactly why
+a server-side answer (your 0001, or b) above) would be better.
+
+Thanks for tracking this down in the test. It saved me from chasing
+what looked like a WAIT FOR wakeup bug.
+
+Regards,
+Jobin Augustine
+Percona

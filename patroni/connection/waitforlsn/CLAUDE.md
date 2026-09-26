@@ -5,6 +5,31 @@
 - **2026-09-26**: Docker environment, Rust app and matrix scripts are implemented and
   tested locally (WSL2, single host). T1, T2, standby stop/start and promotion all work.
   First local numbers are in *Findings so far*.
+- **2026-09-26**: Added pool usage reporting (connections in use and tasks waiting per pool,
+  sampled from deadpool `Pool::status()`) to progress lines, summary and CSV.
+- **2026-09-26**: Added `PARAMETERS.md`, the user reference for every option, the
+  output/CSV columns and the script env vars. **Keep it in sync whenever an option, an
+  output field or a CSV column changes.**
+- **2026-09-26**: Source documentation: `DESIGN.md` (overall flow, architecture, decisions
+  D1–D13, limitations) is the rustdoc front page. Every module, function, struct, field and
+  const has a doc comment. `make doc`, `make lint` (clippy `missing_docs_in_private_items`,
+  warnings are errors), `make test` (7 unit tests).
+- **2026-09-26**: **Bug found and fixed (D2): WAIT FOR stalls when the target LSN is just
+  past a WAL page header.** About 1 in 2000 waits hit the full timeout.
+  `normalize_insert_lsn` moves such LSNs back to the page boundary. After the fix: 0
+  timeouts in about 83k waits. Timeouts are now logged with their LSN.
+- **2026-09-26**: Prepared the pgsql-hackers report on the page-boundary stall in `repro/`:
+  a standalone psql reproducer (`repro.sh` + `find_boundary.sql`, retries until no background
+  WAL interferes; shows all 4 modes time out, including `primary_flush` on a single node),
+  background (`PGSQL_HACKERS_REPORT.md`), and a plain-text reply (`pgsql-hackers-reply.txt`)
+  for the existing thread "test: avoid redundant standby catchup in 049_wait_for_lsn",
+  where Xuneng Zhou posted the same root cause and patches on 2026-09-22. Added
+  `--raw-insert-lsn` (disables the workaround). Measured: without the workaround a stalled
+  wait runs to the full 20s timeout. With 1 client, 5,616 transactions completed in 60s,
+  against 11,364 with it. **Not sent yet**: the user will send it.
+- **2026-09-26**: Found that `wal_writer_flush_after=0` makes T2 as fast as T1 (see
+  Findings). Added the `wal_writer_flush_after` CSV column,
+  `set_wal_writer_delay.sh <delay> [flush_after]`, and `WWD="delay:flush_after"` in the matrix.
 - **Next**: provision EC2 (see *EC2 test plan*), run `scripts/run_matrix.sh`, record
   results here.
 
@@ -82,6 +107,12 @@ Checked by hand on `postgres:19beta4`:
 - Standby, inside `BEGIN ISOLATION LEVEL REPEATABLE READ; SELECT 1;` →
   `ERROR: WAIT cannot be executed while the current transaction holds a snapshot`.
   After a `SELECT` under READ COMMITTED it is allowed (no snapshot is held between statements).
+- `TIMEOUT '0ms'` means **wait forever** (it's not a single check). `--wait-timeout` must be > 0.
+- **Page-boundary stall (important for any WAIT FOR user):** if the last record ends exactly at
+  a WAL page boundary, `pg_current_wal_insert_lsn()` returns boundary + page header size
+  (24, or 40 at a segment start). Standby positions stay at the boundary until more WAL
+  arrives, so with no further writes `WAIT FOR` only ends at the timeout. Observed: all 4 tasks
+  timed out on `0/0CAE2018` (page offset 24). Handled by `normalize_insert_lsn` (DESIGN.md D2).
 - A promoted standby answers `not in recovery` immediately (about 1ms). The app sees a
   burst of fast "failures" and has to route away or back off itself.
 
@@ -94,7 +125,8 @@ our commit record, and waiting for it could return `success` too early.
 The app therefore runs `SELECT pg_current_wal_insert_lsn()` **after** `COMMIT` returns, on
 the **same primary connection**. That position is at or past the end of our commit record,
 so it is a safe (slightly conservative) target. It costs one extra round trip, recorded as
-`lsn_fetch`. Never read the LSN in the same implicit transaction as the write: a
+`lsn_fetch`. The result then goes through `normalize_insert_lsn`, which fixes the
+page-boundary case (see the WAIT FOR reference above, and DESIGN.md D2). Never read the LSN in the same implicit transaction as the write: a
 multi-statement `simple_query` runs as one transaction, so the LSN would come from before
 the commit.
 
@@ -102,10 +134,10 @@ Implications:
 - A physical walsender only ships WAL that the primary has already **flushed**. With async
   commit that flush is done by the WAL writer, so `wal_writer_delay` (default 200ms)
   sets the minimum T2 latency. **Confirmed locally**: see *Findings so far*.
-- So a `standby_flush` success should mean the commit is on disk on **both** primary and
-  standby, which would make T2 arguably *more* durable than T1 (local flush only). Check
-  this against the PG19 source (`walsender.c`, `XLogSendPhysical` → `GetFlushRecPtr`)
-  before stating it in the results.
+- So a `standby_flush` success means the commit is on disk on **both** primary and
+  standby: T2 is at least as durable as T1 (local flush only). **Verified in the PG source**:
+  `walsender.c` `XLogSendPhysical()` sends only up to `GetFlushRecPtr()`, with a comment
+  that unflushed WAL must never reach a standby.
 - In T2 a primary crash *before* the wait succeeds can lose a transaction the primary
   already acked. The app must not report success until the wait succeeds.
 
@@ -126,6 +158,28 @@ Implications:
 - Standby stopped for 5s: WAIT FOR/connection errors while it's down, then automatic
   recovery once it's back (deadpool drops the broken connections).
 - Standby promoted: every wait returns `not in recovery` right away.
+- **`wal_writer_flush_after=0` is the key T2 setting** (from reading `xlog.c`
+  `XLogSetAsyncXactLSN`: every async commit then wakes the WAL writer, which flushes right
+  away). 32 tasks, `standby_replay`, 8s runs:
+
+  | Setting | TPS | total p50 / p99.9 (ms) |
+  |---------|----:|------------------------|
+  | T2 delay=200ms, flush_after=1MB (defaults) | 104 | 392 / 417 |
+  | T2 delay=200ms, flush_after=0 | 2706 | 10.9 / 212 |
+  | T2 delay=10ms, flush_after=0 | 2830 | 10.9 / 20 |
+  | T1 sync (`--fetch-lsn`) | 2634 | 12.0 / 19 |
+
+  With `flush_after=0` and a small delay, T2 matches or beats T1 on this box while adding
+  read-your-writes and a flush on both servers. The tail is still bounded by
+  `wal_writer_delay`, because the WAL writer flushes only whole pages unless the delay has
+  passed. With few tasks (1–4) T2 is slower than T1: less batching, and the wait round trip
+  dominates.
+- Pool usage (32 tasks, wal_writer_delay=10ms): in T2 the standby pool is the one that
+  fills up. It averaged 23.6 of 32 in use because each task holds a standby connection for
+  the whole wait, while an 8-connection primary pool averaged only 4.2 in use (up to 23
+  tasks queued briefly). In T1 the 16-connection primary pool was 99.6% used, with about
+  16 tasks waiting on average. Pool sizing rule of thumb for T2: standby pool is about
+  tasks × (wait time / total time), so it grows with `wal_writer_delay`.
 
 ## Development environment (Docker)
 
@@ -156,23 +210,32 @@ tokio multi-thread), plus `clap`, `hdrhistogram`, `humantime`.
   `PRIMARY_DSN/STANDBY_DSN`, `--tasks`, `--primary-pool`, `--standby-pool`, `--duration`,
   `--txns`, `--wait-mode`, `--wait-timeout`, `--synchronous-commit`, `--verify`,
   `--fetch-lsn`, `--payload-size`, `--truncate`, `--report-interval`, `--output`,
-  `--label`, `--threads`).
+  `--label`, `--threads`, `--pool-sample-interval` (default 10ms)).
 - `workload.rs`: per-txn flow. `primary_step`: acquire → autocommit
   `INSERT ... RETURNING id` → optional `SELECT pg_current_wal_insert_lsn()::text` →
   connection released. `standby_step`: acquire → `WAIT FOR LSN ... NO_THROW` (waitfor) →
-  optional verify `SELECT 1 FROM wfl_test WHERE id=$1`. A txn counts as *completed* only
+  optional verify `SELECT 1 FROM wfl_test WHERE id=$1`. `parse_lsn` / `format_lsn` /
+  `normalize_insert_lsn` handle the page-boundary fix (page and segment size are read from the
+  primary at startup). A txn counts as *completed* only
   on commit (sync) or `success` (waitfor). Also has `is_valid_lsn`, `wait_sql` (unit
   tested) and `pg_err`/`pool_err`, which give SQLSTATE and message instead of
   tokio-postgres' bare "db error".
 - `metrics.rs`: per-task HDR histograms (µs) for total, primary_acquire, commit, lsn_fetch,
   standby_acquire, wait_for_lsn and verify, plus status/verify/error counters. Merged at
-  the end. The live atomics are only for progress lines.
+  the end. The live atomics are only for progress lines. `PoolUsage`/`UsageAcc` hold pool
+  usage samples: `in_use = size - available` (connections checked out) and `waiting`
+  (tasks blocked in `pool.get()`), as now/avg/max, both per report interval (reset by the
+  reporter) and for the whole run.
 - `main.rs`: builds pools (Fast recycling, 30s wait timeout, 10s create timeout); checks
   the primary isn't in recovery and the standby is; creates the table; does a startup
   WAIT FOR so the schema is on the standby; warms both pools; prints the config
   (server version, effective `synchronous_commit`, `wal_writer_delay`); runs the tasks;
-  prints the summary table; optionally appends a CSV line. The progress reporter uses its
-  own monitoring connection to show TPS and `pg_stat_replication` lag. Ctrl-C stops
+  prints the summary table; optionally appends a CSV line. A `pool_sampler` task polls
+  `Pool::status()` of both pools every `--pool-sample-interval`. The progress reporter uses
+  its own monitoring connection to show TPS and `pg_stat_replication` lag, plus one line
+  per pool (in_use now/max_size, avg, max; waiting now/avg/max). The summary has a
+  "pool usage" table (avg/max in use, avg utilisation %, avg/max waiting). CSV columns:
+  `{primary,standby}_{inuse_avg,inuse_max,waiting_avg,waiting_max}`. Ctrl-C stops
   cleanly and still reports.
 
 ## Test matrix (`scripts/run_matrix.sh`)
@@ -183,7 +246,8 @@ pool is `min(tasks, PRIMARY_POOL_MAX=32)` and the standby pool is `tasks`. Every
 appended to one CSV in `results/`. Env: `DURATION TASKS WWD WAIT_MODES PRIMARY_POOL_MAX OUT BIN EXTRA`.
 
 Still manual / to add later:
-- Standby pool sizing sweep (find when `standby_acquire` dominates).
+- Standby pool sizing sweep (find when `standby_acquire` / standby `waiting` dominates;
+  the pool usage columns in the CSV show this directly).
 - Network latency (`tc netem`), which needs `NET_ADMIN` and `iproute2` in the container, or run on the host.
 - Failure scenarios during a run (stop standby, long query on standby, `pg_promote()`).
 - Extra baselines with real sync replication: `synchronous_standby_names='standby1'`
@@ -210,6 +274,9 @@ Still manual / to add later:
 ```
 waitforlsn/
 ├── CLAUDE.md, README.md
+├── PARAMETERS.md       # user reference: every option, output field, CSV column, script variable
+├── DESIGN.md           # overall flow, architecture, decisions D1–D13 (also the rustdoc front page)
+├── repro/              # pgsql-hackers report: page-boundary stall reproducer, write-up, email draft
 ├── .env, .gitignore, Makefile, docker-compose.yml
 ├── docker/primary-init.sh, docker/standby-entrypoint.sh
 ├── sql/schema.sql
@@ -222,7 +289,12 @@ waitforlsn/
 ## Conventions
 
 - Match the style of `../deadpool/src/main.rs`: explicit, well-commented, beginner-readable Rust.
-- Keep this CLAUDE.md updated (Status, Findings) whenever behaviour or results change.
+- Every item gets a `///` doc comment (enforced by `make lint`). Explain the *why*, and
+  reference the decision ID (`D2`, …) when code applies a decision from DESIGN.md. A new
+  cross-cutting decision gets a new D-number in DESIGN.md §4.
+- Run `make lint doc test` before considering a change done.
+- Keep this CLAUDE.md updated (Status, Findings) whenever behaviour or results change,
+  and PARAMETERS.md whenever options, output or CSV columns change.
 - Don't hardcode credentials beyond the dev defaults in `.env`. Don't commit `target/`.
 - When recording results, include: PG image tag, `wal_writer_delay`, pool sizes, task
   count, duration, wait mode, and host description (the CSV has most of these).
