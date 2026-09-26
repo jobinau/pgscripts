@@ -1,0 +1,80 @@
+# PostgreSQL 19 primary + streaming standby for the WAIT FOR LSN evaluation.
+#   docker compose up -d                           # both on one host
+#   docker compose up -d --no-deps pg19-standby    # standby only (EC2, PRIMARY_HOST in .env)
+name: waitforlsn
+
+services:
+  pg19-primary:
+    image: ${PG_IMAGE}
+    container_name: pg19-primary
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      REPL_PASSWORD: ${REPL_PASSWORD}
+      WAL_WRITER_DELAY: ${WAL_WRITER_DELAY}
+      WAL_WRITER_FLUSH_AFTER: ${WAL_WRITER_FLUSH_AFTER}
+    command:
+      - postgres
+      - -c
+      - wal_level=replica
+      - -c
+      - max_wal_senders=10
+      - -c
+      - max_replication_slots=10
+      - -c
+      - synchronous_standby_names=
+      - -c
+      - max_connections=500
+      - -c
+      - shared_buffers=1GB
+    ports:
+      - "${PRIMARY_PORT}:5432"
+    volumes:
+      - primary_data:/var/lib/postgresql
+      - ./docker/primary-init.sh:/docker-entrypoint-initdb.d/10-primary-init.sh:ro
+      - ./sql/schema.sql:/docker-entrypoint-initdb.d/20-schema.sql:ro
+    healthcheck:
+      # -h 127.0.0.1: the init-time temporary server listens on the unix socket only,
+      # so this turns healthy only once the real server (with slot + role) is up.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    shm_size: 1g
+
+  pg19-standby:
+    image: ${PG_IMAGE}
+    container_name: pg19-standby
+    depends_on:
+      pg19-primary:
+        condition: service_healthy
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      REPL_PASSWORD: ${REPL_PASSWORD}
+      PRIMARY_HOST: ${PRIMARY_HOST}
+      PRIMARY_REPL_PORT: ${PRIMARY_REPL_PORT}
+    entrypoint: ["/usr/local/bin/standby-entrypoint.sh"]
+    command:
+      - postgres
+      - -c
+      - hot_standby=on
+      - -c
+      - hot_standby_feedback=on
+      - -c
+      - max_connections=500
+      - -c
+      - shared_buffers=1GB
+    ports:
+      - "${STANDBY_PORT}:5432"
+    volumes:
+      - standby_data:/var/lib/postgresql
+      - ./docker/standby-entrypoint.sh:/usr/local/bin/standby-entrypoint.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres && psql -U postgres -tAc 'select pg_is_in_recovery()' | grep -q t"]
+      interval: 2s
+      timeout: 3s
+      retries: 60
+    shm_size: 1g
+
+volumes:
+  primary_data:
+  standby_data:
