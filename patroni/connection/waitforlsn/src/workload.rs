@@ -27,6 +27,11 @@ pub const INSERT_SQL: &str = "INSERT INTO wfl_test (task_id, payload) VALUES ($1
 /// connection: the insert position is then at or past the end of our commit record. Don't
 /// use `pg_current_wal_flush_lsn()`. With `synchronous_commit=off` it can still be behind
 /// our commit record, and `WAIT FOR` would return too early.
+///
+/// REPRO: this is the value that can point just past a WAL page header. The correction
+/// happens in [`primary_step`] via [`normalize_insert_lsn`]. To check an upstream fix, change
+/// this query to the new end-of-insert function (for example the one from Xuneng Zhou's
+/// 0001 patch) and run with `--raw-insert-lsn` (repro/REPRODUCE_WITH_WAITFORLSN.md).
 pub const LSN_SQL: &str = "SELECT pg_current_wal_insert_lsn()::text";
 
 /// Read-your-writes check on the standby (`--verify`).
@@ -49,7 +54,8 @@ pub struct Ctx {
     pub wait_mode_sql: &'static str,
     /// `WAIT FOR` TIMEOUT in milliseconds. Must be > 0 (0 means "wait forever").
     pub wait_timeout_ms: u128,
-    /// `--raw-insert-lsn`: skip [`normalize_insert_lsn`] (to demonstrate the stall).
+    /// `--raw-insert-lsn`: skip [`normalize_insert_lsn`] and wait for the insert LSN as-is.
+    /// REPRO: this is the switch that brings the upstream stall back without code edits.
     pub raw_insert_lsn: bool,
     /// Primary's WAL page size in bytes (normally 8192), for [`normalize_insert_lsn`].
     pub wal_block_size: u64,
@@ -150,6 +156,8 @@ const SHORT_PAGE_HEADER: u64 = 24;
 /// Size of the long WAL page header (first page of every segment).
 const LONG_PAGE_HEADER: u64 = 40;
 
+/// REPRO: this function is the fix. Bypassed by `--raw-insert-lsn`.
+///
 /// Turn the insert position into a target that the standby is guaranteed to reach
 /// without any further WAL being written (DESIGN.md D2, "page boundary" case).
 ///
@@ -222,6 +230,14 @@ impl Ctx {
         true
     }
 
+    /// Print a note (same 10-message budget as errors). Used in `--raw-insert-lsn` mode to
+    /// show each page-header LSN the program is about to wait for as-is.
+    fn log_note(&self, task_id: i32, msg: &str) {
+        if self.errors_printed.fetch_add(1, Ordering::Relaxed) < 10 {
+            eprintln!("[task {task_id}] note: {msg}");
+        }
+    }
+
     /// Print the first 10 errors of the run to stderr, so a broken setup is obvious right
     /// away. Later errors are only counted (in `TaskStats`), so an outage doesn't flood the terminal.
     fn log_error(&self, task_id: i32, step: &str, msg: &str) {
@@ -229,6 +245,49 @@ impl Ctx {
             eprintln!("[task {task_id}] {step} error: {msg}");
         }
     }
+}
+
+/// Capture WAL positions right after a `WAIT FOR` timeout, to show *where* the target got
+/// stuck: never flushed on the primary (flush < target), flushed but not sent by the
+/// walsender (walsender sent < target), sent but not received (standby receive < sent), or
+/// replayed without the waiter being woken (standby replay >= target). Best effort: failures become part of the text.
+///
+/// The standby is asked first, on the connection that just timed out (cheapest, and closest
+/// in time to the timeout), then the primary through its pool. Other tasks may already be
+/// writing WAL again by then, so the primary values can be slightly newer.
+async fn diagnose_timeout(ctx: &Ctx, standby: &tokio_postgres::Client, target: &str) -> String {
+    let stby = match standby
+        .query_one("SELECT pg_last_wal_receive_lsn()::text, pg_last_wal_replay_lsn()::text", &[])
+        .await
+    {
+        Ok(r) => format!(
+            "standby receive={} replay={}",
+            r.get::<_, Option<String>>(0).unwrap_or_default(),
+            r.get::<_, Option<String>>(1).unwrap_or_default()
+        ),
+        Err(e) => format!("standby positions failed: {}", pg_err(&e)),
+    };
+    let prim = match ctx.primary.get().await {
+        Ok(c) => match c
+            .query_one(
+                "SELECT pg_current_wal_flush_lsn()::text, pg_current_wal_lsn()::text, \
+                 pg_current_wal_insert_lsn()::text, \
+                 (SELECT coalesce(string_agg(application_name || ':' || sent_lsn, ','), '-') \
+                  FROM pg_stat_replication)",
+                &[],
+            )
+            .await
+        {
+            Ok(r) => format!(
+                "primary flush={} write={} insert={} walsender sent={}",
+                r.get::<_, String>(0), r.get::<_, String>(1), r.get::<_, String>(2),
+                r.get::<_, String>(3)
+            ),
+            Err(e) => format!("primary positions failed: {}", pg_err(&e)),
+        },
+        Err(e) => format!("primary positions failed: {}", pool_err(&e)),
+    };
+    format!("target={target} | {stby} | {prim}")
 }
 
 /// Step 1, primary side: INSERT (= commit) and optionally the commit LSN.
@@ -263,12 +322,28 @@ async fn primary_step(
         let row = client.query_one(&stmt, &[]).await.map_err(|e| ("lsn_fetch", pg_err(&e)))?;
         rec(&mut st.h.lsn_fetch, t.elapsed());
         let raw: String = row.get(0);
-        // An LSN just past a page header could stall WAIT FOR: move it to the page boundary (D2)
         let pos = parse_lsn(&raw).ok_or(("lsn_fetch", format!("unparsable LSN {raw:?}")))?;
+
+        // ---- Page-boundary fix (DESIGN.md D2) ----------------------------------------
+        // If the last WAL record ended exactly at a page boundary, `raw` points just past the
+        // next page's header, a position the standby only passes when *more* WAL arrives.
+        // `corrected` is the boundary itself; for any other LSN it equals `pos`.
+        let corrected = normalize_insert_lsn(pos, ctx.wal_block_size, ctx.wal_segment_size);
+        if corrected != pos {
+            st.boundary_lsns += 1;
+        }
         if ctx.raw_insert_lsn {
+            // REPRO: wait for the raw insert LSN (the behaviour the PG19 docs suggest).
+            // A page-header LSN can then stall WAIT FOR until --wait-timeout.
+            if corrected != pos {
+                ctx.log_note(task_id, &format!(
+                    "REPRO: insert LSN {raw} is just past a WAL page header (boundary {}); \
+                     waiting for it as-is (--raw-insert-lsn)", format_lsn(corrected)));
+            }
             Some(raw)
         } else {
-            Some(format_lsn(normalize_insert_lsn(pos, ctx.wal_block_size, ctx.wal_segment_size)))
+            // Normal: wait for the corrected target, which never stalls and is never too early.
+            Some(format_lsn(corrected))
         }
     } else {
         None
@@ -302,6 +377,10 @@ async fn standby_step(
             .await
             .map_err(|e| ("wait_for_lsn", e))?;
         rec(&mut st.h.wait, t.elapsed());
+        if s == WaitStatus::Timeout {
+            // Where did it get stuck? Printed with the timeout message in run_task.
+            st.last_timeout_diag = Some(diagnose_timeout(ctx, &client, lsn).await);
+        }
         Some(s)
     } else {
         None
@@ -356,8 +435,9 @@ pub async fn run_task(ctx: std::sync::Arc<Ctx>, task_id: i32) -> TaskStats {
                         None => {}
                         Some(WaitStatus::Success) => st.wait_success += 1,
                         Some(WaitStatus::Timeout) => {
-                            ctx.log_error(task_id, "wait_for_lsn",
-                                          &format!("timeout waiting for LSN {}", lsn.as_deref().unwrap_or("?")));
+                            let diag = st.last_timeout_diag.take().unwrap_or_default();
+                            ctx.log_error(task_id, "wait_for_lsn", &format!(
+                                "timeout waiting for LSN {} ({diag})", lsn.as_deref().unwrap_or("?")));
                             st.wait_timeout += 1;
                             complete = false;
                         }

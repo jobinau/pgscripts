@@ -111,6 +111,13 @@ pub struct TaskStats {
     pub verify_ok: u64,
     /// `--verify` did not find the row on the standby when it checked.
     pub verify_missing: u64,
+    /// Commit LSNs that pointed just past a WAL page header (DESIGN.md D2). These are the
+    /// targets that can stall `WAIT FOR`: corrected normally, waited for as-is with
+    /// `--raw-insert-lsn`. REPRO: compare with `wait_timeout` (see repro/REPRODUCE_WITH_WAITFORLSN.md).
+    pub boundary_lsns: u64,
+    /// WAL positions captured right after the latest `WAIT FOR` timeout (see
+    /// `workload::diagnose_timeout`). Taken and printed by `run_task`.
+    pub last_timeout_diag: Option<String>,
     /// Error count per step name (`"commit"`, `"wait_for_lsn"`, …). A BTreeMap so the
     /// summary lists steps in a stable order.
     pub errors: BTreeMap<&'static str, u64>,
@@ -130,6 +137,8 @@ impl TaskStats {
             wait_other: 0,
             verify_ok: 0,
             verify_missing: 0,
+            boundary_lsns: 0,
+            last_timeout_diag: None,
             errors: BTreeMap::new(),
             last_error: BTreeMap::new(),
         }
@@ -157,6 +166,7 @@ impl TaskStats {
         self.wait_other += o.wait_other;
         self.verify_ok += o.verify_ok;
         self.verify_missing += o.verify_missing;
+        self.boundary_lsns += o.boundary_lsns;
         for (k, v) in &o.errors {
             *self.errors.entry(k).or_insert(0) += v;
         }

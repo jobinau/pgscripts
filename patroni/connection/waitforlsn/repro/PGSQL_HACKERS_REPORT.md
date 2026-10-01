@@ -99,7 +99,8 @@ Each client: autocommit INSERT → `SELECT pg_current_wal_insert_lsn()` →
 
 - With the correction: 0 timeouts in about 83k waits (4 × 40s runs, `standby_flush` + `standby_replay`).
 
-To re-run (e.g. on EC2, or on a newer 19 build to check a fix):
+To re-run (e.g. on EC2, or on a newer 19 build to check a fix), see
+`REPRODUCE_WITH_WAITFORLSN.md` for the full procedure and how to read the output:
 ```bash
 scripts/set_wal_writer_delay.sh 10ms 0
 target/release/waitforlsn --mode waitfor --tasks 4 --primary-pool 4 --standby-pool 4 \

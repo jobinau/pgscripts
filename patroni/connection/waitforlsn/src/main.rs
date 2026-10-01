@@ -196,7 +196,14 @@ async fn run(args: Args) -> Result<(), BoxError> {
 
     if let Some(sp) = &standby {
         // Make sure the schema change has reached the standby, and that WAIT FOR works at all.
-        let lsn: String = primary.get().await?.query_one(workload::LSN_SQL, &[]).await?.get(0);
+        // The target is always page-boundary corrected here, even with --raw-insert-lsn: after
+        // CREATE TABLE nothing else may write WAL, so a raw page-header LSN could make this
+        // startup check wait its full 30s (DESIGN.md D2).
+        // REPRO: --raw-insert-lsn deliberately affects only the measured run, not this check.
+        let raw: String = primary.get().await?.query_one(workload::LSN_SQL, &[]).await?.get(0);
+        let pos = workload::parse_lsn(&raw).ok_or(format!("unparsable LSN {raw:?}"))?;
+        let lsn = workload::format_lsn(workload::normalize_insert_lsn(
+            pos, info.wal_block_size, info.wal_segment_size));
         let c = sp.get().await?;
         let in_recovery: bool = c.query_one("SELECT pg_is_in_recovery()", &[]).await?.get(0);
         if !in_recovery {
@@ -416,6 +423,14 @@ fn print_summary(args: &Args, t: &TaskStats, pools: &PoolStats, elapsed: Duratio
     if args.verify {
         println!("verify (row visible): ok={} missing={}", t.verify_ok, t.verify_missing);
     }
+    if args.needs_lsn() {
+        // REPRO: with --raw-insert-lsn, compare this with the WAIT FOR timeout count above
+        println!(
+            "page-header LSNs    : {}  ({})",
+            t.boundary_lsns,
+            if args.raw_insert_lsn { "waited for as-is: --raw-insert-lsn" } else { "corrected to the page boundary" }
+        );
+    }
     println!("errors              : {}", t.error_total());
     for (step, n) in &t.errors {
         println!("  {step:<16}: {n}  last: {}", t.last_error.get(step).map(String::as_str).unwrap_or(""));
@@ -474,7 +489,8 @@ fn write_csv(
              commit_p50_ms,commit_p99_ms,lsn_fetch_p50_ms,wait_p50_ms,wait_p95_ms,wait_p99_ms,\
              primary_acquire_p99_ms,standby_acquire_p99_ms,\
              primary_inuse_avg,primary_inuse_max,primary_waiting_avg,primary_waiting_max,\
-             standby_inuse_avg,standby_inuse_max,standby_waiting_avg,standby_waiting_max"
+             standby_inuse_avg,standby_inuse_max,standby_waiting_avg,standby_waiting_max,\
+             raw_insert_lsn,boundary_lsns"
         )?;
     }
     let ts = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_secs();
@@ -492,7 +508,7 @@ fn write_csv(
     writeln!(
         f,
         "{ts},\"{}\",{},{},{},{},{},{},{},{},{},{},{},{},{},{:.2},{},{:.1},{},{},{},{},\
-         {:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{},{}",
+         {:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{},{},{},{}",
         args.label.replace('"', "'"),
         info.version.split_whitespace().next().unwrap_or(""),
         args.mode.name(),
@@ -529,6 +545,8 @@ fn write_csv(
         q_ms(&h.standby_acquire, 0.99),
         usage(Some(&pools.primary)),
         usage(pools.standby.as_ref()),
+        args.raw_insert_lsn,
+        t.boundary_lsns,
     )?;
     Ok(())
 }

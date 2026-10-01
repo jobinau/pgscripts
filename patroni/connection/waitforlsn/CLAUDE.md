@@ -27,6 +27,28 @@
   `--raw-insert-lsn` (disables the workaround). Measured: without the workaround a stalled
   wait runs to the full 20s timeout. With 1 client, 5,616 transactions completed in 60s,
   against 11,364 with it. **Not sent yet**: the user will send it.
+- **2026-09-29**: Added `repro/REPRODUCE_WITH_WAITFORLSN.md`: how to reproduce the
+  page-boundary stall with the program (`--raw-insert-lsn`, or the documented code edits, which were
+  checked to compile), `REPRO:` markers in the code (`grep -n REPRO src/*.rs`), and a
+  `boundary_lsns` counter (summary line "page-header LSNs", CSV columns `raw_insert_lsn`,
+  `boundary_lsns`). Startup check now always uses a corrected LSN. Timeout messages include
+  a WAL position snapshot (`diagnose_timeout`).
+- **2026-09-29, OPEN: a second, rarer stall that the fix does not cover.** All 4 tasks timed out
+  (3s) on `0/12C283A0`, an ordinary commit end, not a page header. Snapshot: primary
+  flush=write=insert=target, but standby receive=`0/12C28000` (a page boundary). So the WAL
+  was flushed but not streamed for 3s. Suspected: a lost walsender wakeup. The walsender reads
+  `GetFlushRecPtr()` in `XLogSendPhysical()`, and only later joins `wal_flush_cv` in
+  `WalSndWait()`, so a flush + `ConditionVariableBroadcast()` in between wakes nobody. The
+  walsender then sleeps until standby feedback, a keepalive or the next flush.
+  Seen 2 times in about 140k waits (4 tasks), then 0 in about 246k waits (8 × 60s).
+  **2026-09-30: captured with `walsender sent`:** target `0/18E8F8E8`, primary flush = target,
+  walsender sent = standby receive = `0/18E8F6A8` (mid-page). So the walsender didn't send
+  flushed WAL for 3s: it's the walsender side, not the standby or `WAIT FOR`. The exact race
+  (read flush ptr, then PrepareToSleep) is still a hypothesis. Next: confirm the race in the
+  source/with instrumentation, and hunt on EC2. Not in the pgsql-hackers draft yet.
+- **2026-09-30**: Re-tested the page-boundary reproduction from a clean start: reproduced in 3/3
+  60s raw runs (32/8/8 timeouts), control run with the fix had 0. The copy-paste steps are at the
+  top of `repro/REPRODUCE_WITH_WAITFORLSN.md`.
 - **2026-09-26**: Found that `wal_writer_flush_after=0` makes T2 as fast as T1 (see
   Findings). Added the `wal_writer_flush_after` CSV column,
   `set_wal_writer_delay.sh <delay> [flush_after]`, and `WWD="delay:flush_after"` in the matrix.
@@ -276,7 +298,8 @@ waitforlsn/
 ├── CLAUDE.md, README.md
 ├── PARAMETERS.md       # user reference: every option, output field, CSV column, script variable
 ├── DESIGN.md           # overall flow, architecture, decisions D1–D13 (also the rustdoc front page)
-├── repro/              # pgsql-hackers report: page-boundary stall reproducer, write-up, email draft
+├── repro/              # pgsql-hackers report (reproducer, write-up, email draft) +
+│                       # REPRODUCE_WITH_WAITFORLSN.md (reproduce with the Rust program)
 ├── .env, .gitignore, Makefile, docker-compose.yml
 ├── docker/primary-init.sh, docker/standby-entrypoint.sh
 ├── sql/schema.sql

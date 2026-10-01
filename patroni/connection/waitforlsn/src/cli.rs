@@ -139,6 +139,7 @@ pub struct Args {
 
     /// Wait for pg_current_wal_insert_lsn() as-is, without the page-boundary fix (DESIGN.md D2).
     /// Only for demonstrating the upstream problem: some waits then stall until their timeout.
+    /// REPRO: see repro/REPRODUCE_WITH_WAITFORLSN.md
     #[arg(long)]
     pub raw_insert_lsn: bool,
 

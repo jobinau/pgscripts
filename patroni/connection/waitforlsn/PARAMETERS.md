@@ -239,7 +239,9 @@ Wait for the value of `pg_current_wal_insert_lsn()` exactly as returned, without
 page-boundary correction (DESIGN.md D2). **Only for demonstrating the upstream problem**, or
 for checking whether a PostgreSQL fix makes the correction unnecessary. With it, some waits
 stall until `--wait-timeout` (or until unrelated WAL is written). See
-`repro/PGSQL_HACKERS_REPORT.md`.
+`repro/REPRODUCE_WITH_WAITFORLSN.md` (step-by-step) and `repro/PGSQL_HACKERS_REPORT.md`.
+In this mode each page-header LSN is logged as a `REPRO:` note, and the summary line
+`page-header LSNs` tells how many there were.
 
 ### `--payload-size <bytes>`
 Default: `100`
@@ -317,6 +319,8 @@ a new file if the program is upgraded and the columns change. Columns:
 | `primary_inuse_avg`, `primary_inuse_max` | primary pool connections in use, whole run |
 | `primary_waiting_avg`, `primary_waiting_max` | tasks waiting for a primary connection |
 | `standby_inuse_avg` … `standby_waiting_max` | same for the standby pool (empty when unused) |
+| `raw_insert_lsn` | `true` if the run used `--raw-insert-lsn` (page-boundary fix disabled) |
+| `boundary_lsns` | commit LSNs that pointed just past a WAL page header (the targets that can stall `WAIT FOR`). Corrected unless `raw_insert_lsn` |
 
 ### `--label <text>`
 Default: empty

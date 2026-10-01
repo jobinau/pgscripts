@@ -352,6 +352,10 @@ Each decision has an ID. Code comments refer to these (e.g. "see DESIGN.md D2").
 - Broken connections are discarded by deadpool on return (`RecyclingMethod::Fast` checks
   `is_closed()`), and new ones are opened on demand. So a restarted standby is picked up
   again automatically (verified: stop/start and promotion tests).
+- On a `WAIT FOR` timeout, `diagnose_timeout` captures the primary's flush/write/insert
+  positions, the walsender's `sent_lsn` and the standby's receive/replay positions, and
+  adds them to the timeout message. This tells where a target got stuck (see
+  repro/REPRODUCE_WITH_WAITFORLSN.md §5).
 - `pg_err`/`pool_err` show SQLSTATE and the server message. tokio-postgres' own `Display`
   just says "db error".
 

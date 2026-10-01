@@ -57,6 +57,12 @@ make test        # unit tests
 
 [DESIGN.md](DESIGN.md) explains the overall flow and the reasoning behind each design decision.
 
+## Reproducing the upstream WAIT FOR page-boundary stall
+
+The program corrects the problem by default. [repro/REPRODUCE_WITH_WAITFORLSN.md](repro/REPRODUCE_WITH_WAITFORLSN.md)
+shows how to bring it back (`--raw-insert-lsn`, or code edits) and how to read the output.
+[repro/PGSQL_HACKERS_REPORT.md](repro/PGSQL_HACKERS_REPORT.md) has the upstream report.
+
 ## Full matrix
 
 ```bash
