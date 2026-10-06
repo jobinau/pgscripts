@@ -47,8 +47,12 @@ them if yours differ.
 ```bash
 NS=pgo
 CLUSTER=cluster1
-primary() { kubectl -n $NS get pods -l postgres-operator.crunchydata.com/role=primary -o jsonpath='{.items[0].metadata.name}'; }
+P=$(kubectl -n $NS get pods -l postgres-operator.crunchydata.com/role=primary -o jsonpath='{.items[0].metadata.name}')
+echo "Primary: $P"
 ```
+
+The primary can change (rolling restart in Step 1, failover after an OOM).
+Re-run the `P=...` line whenever that happens.
 
 > **Label note:** operator 2.x uses `postgres-operator.crunchydata.com/role=primary`.
 > The older `role=master` selector returns nothing.
@@ -60,10 +64,9 @@ primary() { kubectl -n $NS get pods -l postgres-operator.crunchydata.com/role=pr
 ```bash
 kubectl -n $NS get pods
 kubectl -n $NS get perconapgcluster $CLUSTER
-echo "Primary: $(primary)"
 
 # SQL check from inside the primary
-kubectl -n $NS exec $(primary) -c database -- psql -Atc "select version(), pg_is_in_recovery()"
+kubectl -n $NS exec $P -c database -- psql -Atc "select version(), pg_is_in_recovery()"
 ```
 
 To connect from your workstation, port-forward **to the pod**.
@@ -71,7 +74,7 @@ To connect from your workstation, port-forward **to the pod**.
 `kubectl port-forward svc/cluster1-ha` fails.
 
 ```bash
-kubectl -n $NS port-forward pod/$(primary) 15432:5432 &
+kubectl -n $NS port-forward pod/$P 15432:5432 &
 PGPASSWORD=$(kubectl -n $NS get secret $CLUSTER-pguser-$CLUSTER -o jsonpath='{.data.password}' | base64 -d) \
   psql -h 127.0.0.1 -p 15432 -U $CLUSTER -d $CLUSTER -c 'select 1'
 ```
@@ -95,7 +98,7 @@ kubectl -n $NS get pods -l postgres-operator.crunchydata.com/data=postgres -L po
 Check the limit on the (possibly new) primary:
 
 ```bash
-kubectl -n $NS exec $(primary) -c database -- sh -c '
+kubectl -n $NS exec $P -c database -- sh -c '
   echo memory.max=$(cat /sys/fs/cgroup/memory.max)
   echo memory.swap.max=$(cat /sys/fs/cgroup/memory.swap.max)
   echo memory.oom.group=$(cat /sys/fs/cgroup/memory.oom.group)
@@ -114,35 +117,37 @@ All parameters in the patch are reloadable, so no restart is needed. Patroni
 applies them within about 10–30 s. Check them:
 
 ```bash
-kubectl -n $NS exec $(primary) -c database -- psql -c \
+kubectl -n $NS exec $P -c database -- psql -c \
  "select name, setting, unit, pending_restart from pg_settings
    where name in ('work_mem','hash_mem_multiplier','maintenance_work_mem','max_parallel_workers_per_gather','shared_buffers')"
 ```
 
-### Step 3: Start a separate pgbench client pod
+### Step 3: Use the client tools in the primary pod
 
-The client runs in its own pod so that pgbench's memory is not charged to the
-database container.
+The `database` container already has `pgbench` and `psql`
+(`/usr/pgsql-17/bin`). `kubectl exec` runs them as OS user `postgres`. They
+connect over the Unix socket (`PGHOST=/tmp/postgres`) as the `postgres`
+superuser to the default database `postgres` (schema `public`). No password,
+extra pod or ConfigMap is needed.
 
-```bash
-kubectl -n $NS create configmap oomtest-scripts --from-file=scripts/ --dry-run=client -o yaml | kubectl apply -f -
-kubectl apply -f manifests/pgbench-client.yaml
-kubectl -n $NS wait --for=condition=Ready pod/pgbench-client --timeout=120s
-```
-
-The pod connects to `cluster1-primary.pgo.svc` with the
-`cluster1-pguser-cluster1` credentials. It always follows the current primary.
+**Side effects of running the client inside the primary:**
+- pgbench's memory counts toward the same 2 GiB cgroup. This is negligible
+  (a few MB): the queries return 0 rows, so the memory is used by the
+  server backends, not the client.
+- pgbench is in the same cgroup, so the OOM kill takes it down too.
+  `kubectl exec` returns `command terminated with exit code 137`, and you will
+  not see pgbench's own `client aborted` messages or summary.
 
 ### Step 4: Load test data
 
 ```bash
-kubectl -n $NS exec pgbench-client -- pgbench -i -s 50 -q     # ~640 MB table, ~25 s
+kubectl -n $NS exec $P -c database -- pgbench -i -s 50 -q     # ~640 MB table, ~15-25 s
 ```
 
 ### Step 5 (optional): Measure per-query memory
 
 ```bash
-kubectl -n $NS exec pgbench-client -- psql \
+kubectl -n $NS exec $P -c database -- psql \
   -c "explain (analyze, costs off, timing off) SELECT * FROM pgbench_accounts ORDER BY filler DESC, abalance OFFSET 100000000" \
   -c "explain (analyze, costs off, timing off) SELECT aid, filler, count(*) FROM pgbench_accounts GROUP BY aid, filler OFFSET 100000000"
 ```
@@ -169,18 +174,18 @@ Manual equivalent, in two terminals:
 
 ```bash
 # terminal 1: watch memory and container state once per second
-scripts/monitor.sh $(primary)
+scripts/monitor.sh $P
 
-# terminal 2: workload
-kubectl -n $NS exec pgbench-client -- pgbench -n -f /scripts/oom_sort.sql -c 4 -j 4 -T 60 -P 5
+# terminal 2: workload. The SQL file is streamed over stdin (note: exec -i), so nothing is copied into the pod.
+kubectl -n $NS exec -i $P -c database -- pgbench -n -f /dev/stdin -c 4 -j 4 -T 60 -P 5 < scripts/oom_sort.sql
 ```
 
-The OOM happens within 5–10 seconds. pgbench reports:
+The OOM happens within 5–10 seconds. Because pgbench is killed together with
+PostgreSQL, the output is just:
 
 ```
-pgbench: error: client 2 aborted in command 0 (SQL) of script 0; perhaps the backend died while processing
-...
-number of transactions actually processed: 0
+pgbench (17.7 - Percona Server for PostgreSQL 17.7.1)
+command terminated with exit code 137
 ```
 
 ### Step 7: Confirm it was an OOM kill
@@ -201,7 +206,10 @@ number of transactions actually processed: 0
 
 ## 5. Observed results
 
-The same mechanism gave two different HA outcomes. Which one you get depends
+Runs 1 and 2 used an earlier setup: a separate pgbench client pod, with
+tables in the `cluster1` database/schema. Run 3 used pgbench inside the
+primary, as described above. The OOM mechanism was the same
+in all three. Runs 1 and 2 gave two different HA outcomes. Which one you get depends
 on how fast the container comes back compared with the Patroni leader-lock
 TTL (30 s).
 
@@ -232,6 +240,23 @@ Evidence: `results/run-20261006-113810/`.
 | 06:08:42.7 | The old primary's container starts, sees `Lock owner: nnjz`, runs single-user crash recovery, then **`pg_rewind` from the new leader**, and rejoins as a streaming replica |
 | | **Failover happened; primary moved to another pod.** |
 
+### Run 3: pgbench inside the primary, restart in place (`oom_sort.sql`, 4 clients)
+
+Evidence: `results/run-20261006-115601/`. Primary `nnjz`, first restart of its container.
+
+| Time | Event |
+|---|---|
+| 06:26:05 | `kubectl exec ... pgbench` starts inside the primary; cgroup memory 1.04 GiB → 1.59 GiB at 06:26:08 |
+| ~06:26:09 | Kernel cgroup OOM; container `OOMKilled`, exit 137. The `kubectl exec` running pgbench returns `exit code 137` |
+| 06:26:12 | Container restarted (no back-off); `doing crash recovery in a single user mode` |
+| 06:26:16 | `promoted self to leader because I had the session lock`; timeline 4 → 5 |
+| | **Same primary, write outage ≈ 7 s.** Identical to Run 1, so the client's location does not change the result. |
+
+Run 4 (`results/run-20261006-121506/`) repeated Run 3 exactly as written in
+Step 4 and Step 6: default `postgres` database, no extra options. Same
+result: `OOMKilled`/137 at 06:45:13, crash recovery, `promoted self to leader
+because I had the session lock` at 06:45:21, same primary, timeline 5 → 6.
+
 ### Why the outcome varies
 
 - kubelet restart back-off doubles on every restart: 0 s, 10 s, 20 s, 40 s,
@@ -254,7 +279,7 @@ Evidence: `results/run-20261006-113810/`.
 | No OOM (control run) | Revert `work_mem` (Step 9); sorts spill to `pgsql_tmp` and memory stays flat |
 | To force a failover | Run the test twice within 10 min (back-off pushes restart past the TTL), or lower `patroni.dynamicConfiguration.ttl` |
 | To avoid a failover | Raise `ttl` / `retry_timeout` (trade-off: slower detection of real failures) |
-| Mixed OLTP + OOM | Run normal `pgbench -c 10 -T 300` in parallel to observe client errors and lost transactions |
+| Mixed OLTP + OOM | Run normal `pgbench -c 10 -T 300` in parallel from a client **outside** the primary pod (another pod or a port-forward). A client inside the primary is killed too, so it cannot report errors or lost transactions. |
 | Kill only one backend instead of the container | Kubernetes ≥ 1.32 kubelet `singleProcessOOMKill: true` (cgroup v2) leaves `memory.oom.group=0`. The kernel then kills one backend and the postmaster performs its own crash-restart ("server process was terminated by signal 9") without a container restart. Not tested here (k3s 1.30). |
 
 Notes:
@@ -271,7 +296,6 @@ Notes:
 
 ```
 README.md                       this guide
-manifests/pgbench-client.yaml   standalone pgbench client pod (mounts scripts/ via ConfigMap)
 manifests/patch-pg-params.yaml  work_mem / hash_mem_multiplier etc. (Patroni dynamic config)
 manifests/revert-pg-params.yaml removes the above (back to defaults)
 scripts/oom_sort.sql            pgbench script: full in-memory sort (~743 MB/backend)
@@ -284,9 +308,7 @@ results/                        evidence from the runs described in section 5
 ## 8. Cleanup / revert
 
 ```bash
-kubectl -n $NS exec pgbench-client -- pgbench -i -I d     # drop pgbench tables
-kubectl -n $NS delete pod pgbench-client
-kubectl -n $NS delete configmap oomtest-scripts
+kubectl -n $NS exec $P -c database -- pgbench -i -I d     # drop pgbench tables
 
 # restore PostgreSQL defaults (reload only)
 kubectl -n $NS patch perconapgcluster $CLUSTER --type=merge --patch-file manifests/revert-pg-params.yaml
@@ -298,3 +320,4 @@ kubectl -n $NS patch perconapgcluster $CLUSTER --type=json -p='[{"op":"remove","
 In production, keep a memory limit, but size `work_mem`, `max_connections`,
 parallel workers and `shared_buffers` so that the worst case fits under it.
 Better still, route connections through pgBouncer with a bounded pool size.
+
