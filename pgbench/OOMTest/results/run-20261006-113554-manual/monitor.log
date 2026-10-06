@@ -1,0 +1,36 @@
+11:35:54 cluster1-instance1-6cjd-0 role=primary mem=1078MiB oom_kill=0 ready=true restarts=0 last=/
+11:35:56 cluster1-instance1-6cjd-0 role=primary mem=1079MiB oom_kill=0 ready=true restarts=0 last=/
+11:35:58 cluster1-instance1-6cjd-0 role=primary mem=1080MiB oom_kill=0 ready=true restarts=0 last=/
+11:36:00 cluster1-instance1-6cjd-0 role=primary mem=1755MiB oom_kill=0 ready=true restarts=0 last=/
+11:36:02 cluster1-instance1-6cjd-0 role=primary mem=exec-failed ready=true restarts=0 last=/
+11:36:04 cluster1-instance1-6cjd-0 role=primary mem=exec-failed ready=false restarts=0 last=/
+11:36:05 cluster1-instance1-6cjd-0 role=primary mem=326MiB oom_kill=0 ready=false restarts=1 last=OOMKilled/137
+11:36:07 cluster1-instance1-6cjd-0 role=primary mem=815MiB oom_kill=0 ready=false restarts=1 last=OOMKilled/137
+11:36:09 cluster1-instance1-6cjd-0 role=primary mem=968MiB oom_kill=0 ready=false restarts=1 last=OOMKilled/137
+11:36:11 cluster1-instance1-6cjd-0 role=primary mem=1260MiB oom_kill=0 ready=true restarts=1 last=OOMKilled/137
+11:36:13 cluster1-instance1-6cjd-0 role=primary mem=1294MiB oom_kill=0 ready=true restarts=1 last=OOMKilled/137
+11:36:15 cluster1-instance1-6cjd-0 role=primary mem=1292MiB oom_kill=0 ready=true restarts=1 last=OOMKilled/137
+11:36:17 cluster1-instance1-6cjd-0 role=primary mem=1292MiB oom_kill=0 ready=true restarts=1 last=OOMKilled/137
+11:36:19 cluster1-instance1-6cjd-0 role=primary mem=1289MiB oom_kill=0 ready=true restarts=1 last=OOMKilled/137
+11:36:20 cluster1-instance1-6cjd-0 role=primary mem=1288MiB oom_kill=0 ready=true restarts=1 last=OOMKilled/137
+11:36:22 cluster1-instance1-6cjd-0 role=primary mem=1291MiB oom_kill=0 ready=true restarts=1 last=OOMKilled/137
+11:36:24 cluster1-instance1-6cjd-0 role=primary mem=1290MiB oom_kill=0 ready=true restarts=1 last=OOMKilled/137
+11:36:26 cluster1-instance1-6cjd-0 role=primary mem=1290MiB oom_kill=0 ready=true restarts=1 last=OOMKilled/137
+11:36:28 cluster1-instance1-6cjd-0 role=primary mem=1291MiB oom_kill=0 ready=true restarts=1 last=OOMKilled/137
+11:36:30 cluster1-instance1-6cjd-0 role=primary mem=1289MiB oom_kill=0 ready=true restarts=1 last=OOMKilled/137
+11:36:32 cluster1-instance1-6cjd-0 role=primary mem=1292MiB oom_kill=0 ready=true restarts=1 last=OOMKilled/137
+11:36:34 cluster1-instance1-6cjd-0 role=primary mem=1290MiB oom_kill=0 ready=true restarts=1 last=OOMKilled/137
+11:36:36 cluster1-instance1-6cjd-0 role=primary mem=1289MiB oom_kill=0 ready=true restarts=1 last=OOMKilled/137
+11:36:38 cluster1-instance1-6cjd-0 role=primary mem=1290MiB oom_kill=0 ready=true restarts=1 last=OOMKilled/137
+11:36:39 cluster1-instance1-6cjd-0 role=primary mem=1291MiB oom_kill=0 ready=true restarts=1 last=OOMKilled/137
+11:36:41 cluster1-instance1-6cjd-0 role=primary mem=1291MiB oom_kill=0 ready=true restarts=1 last=OOMKilled/137
+11:36:43 cluster1-instance1-6cjd-0 role=primary mem=1289MiB oom_kill=0 ready=true restarts=1 last=OOMKilled/137
+11:36:45 cluster1-instance1-6cjd-0 role=primary mem=1289MiB oom_kill=0 ready=true restarts=1 last=OOMKilled/137
+11:36:47 cluster1-instance1-6cjd-0 role=primary mem=1289MiB oom_kill=0 ready=true restarts=1 last=OOMKilled/137
+11:36:49 cluster1-instance1-6cjd-0 role=primary mem=1291MiB oom_kill=0 ready=true restarts=1 last=OOMKilled/137
+11:36:51 cluster1-instance1-6cjd-0 role=primary mem=1289MiB oom_kill=0 ready=true restarts=1 last=OOMKilled/137
+11:36:53 cluster1-instance1-6cjd-0 role=primary mem=1287MiB oom_kill=0 ready=true restarts=1 last=OOMKilled/137
+11:36:55 cluster1-instance1-6cjd-0 role=primary mem=1287MiB oom_kill=0 ready=true restarts=1 last=OOMKilled/137
+11:36:57 cluster1-instance1-6cjd-0 role=primary mem=1287MiB oom_kill=0 ready=true restarts=1 last=OOMKilled/137
+11:36:58 cluster1-instance1-6cjd-0 role=primary mem=1289MiB oom_kill=0 ready=true restarts=1 last=OOMKilled/137
+11:37:00 cluster1-instance1-6cjd-0 role=primary mem=1290MiB oom_kill=0 ready=true restarts=1 last=OOMKilled/137

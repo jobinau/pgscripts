@@ -1,0 +1,20 @@
+2026-10-06 06:06:10.046 UTC [2838] HINT:  Future log output will appear in directory "log".
+/tmp/postgres:5432 - accepting connections
+/tmp/postgres:5432 - accepting connections
+2026-10-06 06:06:10,772 INFO: Lock owner: cluster1-instance1-6cjd-0; I am cluster1-instance1-6cjd-0
+2026-10-06 06:06:10,773 INFO: establishing a new patroni heartbeat connection to postgres
+2026-10-06 06:06:10,876 INFO: promoted self to leader because I had the session lock
+server promoting
+2026-10-06 06:06:11,966 INFO: no action. I am (cluster1-instance1-6cjd-0), the leader with the lock
+2026-10-06 06:06:21,918 INFO: no action. I am (cluster1-instance1-6cjd-0), the leader with the lock
+2026-10-06 06:06:31,955 INFO: no action. I am (cluster1-instance1-6cjd-0), the leader with the lock
+2026-10-06 06:06:41,918 INFO: no action. I am (cluster1-instance1-6cjd-0), the leader with the lock
+2026-10-06 06:06:51,924 INFO: no action. I am (cluster1-instance1-6cjd-0), the leader with the lock
+2026-10-06 06:07:01,917 INFO: no action. I am (cluster1-instance1-6cjd-0), the leader with the lock
+2026-10-06 06:07:11,945 INFO: no action. I am (cluster1-instance1-6cjd-0), the leader with the lock
+2026-10-06 06:07:21,920 INFO: no action. I am (cluster1-instance1-6cjd-0), the leader with the lock
+2026-10-06 06:07:31,921 INFO: no action. I am (cluster1-instance1-6cjd-0), the leader with the lock
+2026-10-06 06:07:41,932 INFO: no action. I am (cluster1-instance1-6cjd-0), the leader with the lock
+2026-10-06 06:07:51,919 INFO: no action. I am (cluster1-instance1-6cjd-0), the leader with the lock
+2026-10-06 06:08:01,919 INFO: no action. I am (cluster1-instance1-6cjd-0), the leader with the lock
+2026-10-06 06:08:11,919 INFO: no action. I am (cluster1-instance1-6cjd-0), the leader with the lock

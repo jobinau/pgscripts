@@ -1,0 +1,29 @@
+# Standalone pgbench client. Runs in its own pod so the client's memory is
+# NOT charged to the database container's cgroup.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pgbench-client
+  namespace: pgo
+spec:
+  restartPolicy: Never
+  containers:
+  - name: pgbench
+    image: docker.io/percona/percona-distribution-postgresql:17.7-2
+    command: ["sleep", "infinity"]
+    env:
+    - name: PGHOST
+      value: cluster1-primary.pgo.svc
+    - name: PGUSER
+      valueFrom: {secretKeyRef: {name: cluster1-pguser-cluster1, key: user}}
+    - name: PGPASSWORD
+      valueFrom: {secretKeyRef: {name: cluster1-pguser-cluster1, key: password}}
+    - name: PGDATABASE
+      valueFrom: {secretKeyRef: {name: cluster1-pguser-cluster1, key: dbname}}
+    volumeMounts:
+    - name: scripts
+      mountPath: /scripts
+  volumes:
+  - name: scripts
+    configMap:
+      name: oomtest-scripts

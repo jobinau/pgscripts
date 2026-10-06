@@ -1,0 +1,4 @@
+NAME                        READY   STATUS    RESTARTS      AGE     ROLE
+cluster1-instance1-47bj-0   4/4     Running   0             8m41s   replica
+cluster1-instance1-6cjd-0   3/4     Running   2 (33s ago)   9m27s   
+cluster1-instance1-nnjz-0   4/4     Running   0             9m8s    primary

@@ -1,0 +1,12 @@
+# kubectl -n pgo patch perconapgcluster cluster1 --type=merge --patch-file manifests/patch-pg-params.yaml
+# All four are reloadable (no restart). They let a single backend use ~1GB of
+# private memory for a sort / hash before spilling to disk.
+spec:
+  patroni:
+    dynamicConfiguration:
+      postgresql:
+        parameters:
+          work_mem: 1GB
+          hash_mem_multiplier: "4"
+          maintenance_work_mem: 1GB
+          max_parallel_workers_per_gather: "4"

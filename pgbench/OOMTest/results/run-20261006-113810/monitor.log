@@ -1,0 +1,21 @@
+11:38:12 cluster1-instance1-6cjd-0 role=primary mem=1145MiB oom_kill=0 ready=true restarts=1 last=OOMKilled/137
+11:38:14 cluster1-instance1-6cjd-0 role=primary mem=1145MiB oom_kill=0 ready=true restarts=1 last=OOMKilled/137
+11:38:16 cluster1-instance1-6cjd-0 role=primary mem=1638MiB oom_kill=0 ready=true restarts=1 last=OOMKilled/137
+11:38:18 cluster1-instance1-6cjd-0 role=primary mem=2047MiB oom_kill=0 ready=true restarts=1 last=OOMKilled/137
+11:38:20 cluster1-instance1-6cjd-0 role=primary mem=exec-failed ready=false restarts=1 last=OOMKilled/137
+11:38:22 cluster1-instance1-6cjd-0 role=primary mem=exec-failed ready=false restarts=1 last=OOMKilled/137
+11:38:23 cluster1-instance1-6cjd-0 role=primary mem=exec-failed ready=false restarts=1 last=OOMKilled/137
+11:38:25 cluster1-instance1-6cjd-0 role=primary mem=exec-failed ready=false restarts=1 last=OOMKilled/137
+11:38:27 cluster1-instance1-6cjd-0 role=primary mem=exec-failed ready=false restarts=1 last=OOMKilled/137
+11:38:29 cluster1-instance1-6cjd-0 role=primary mem=exec-failed ready=false restarts=1 last=OOMKilled/137
+11:38:30 cluster1-instance1-6cjd-0 role=primary mem=exec-failed ready=false restarts=1 last=OOMKilled/137
+11:38:32 cluster1-instance1-6cjd-0 role=primary mem=exec-failed ready=false restarts=1 last=OOMKilled/137
+11:38:34 cluster1-instance1-6cjd-0 role=primary mem=exec-failed ready=false restarts=1 last=OOMKilled/137
+11:38:35 cluster1-instance1-6cjd-0 role=primary mem=exec-failed ready=false restarts=1 last=OOMKilled/137
+11:38:37 cluster1-instance1-6cjd-0 role=primary mem=exec-failed ready=false restarts=1 last=OOMKilled/137
+11:38:39 cluster1-instance1-6cjd-0 role=primary mem=exec-failed ready=false restarts=1 last=OOMKilled/137
+11:38:41 cluster1-instance1-6cjd-0 role=primary mem=exec-failed ready=false restarts=1 last=OOMKilled/137
+11:38:43 cluster1-instance1-6cjd-0 role= mem=34MiB oom_kill=0 ready=false restarts=2 last=OOMKilled/137
+11:38:45 cluster1-instance1-6cjd-0 role= mem=327MiB oom_kill=0 ready=false restarts=2 last=OOMKilled/137
+11:38:47 cluster1-instance1-6cjd-0 role= mem=399MiB oom_kill=0 ready=false restarts=2 last=OOMKilled/137
+11:38:48 cluster1-instance1-6cjd-0 role= mem=245MiB oom_kill=0 ready=false restarts=2 last=OOMKilled/137

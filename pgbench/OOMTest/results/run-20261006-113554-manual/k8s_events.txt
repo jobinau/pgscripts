@@ -1,0 +1,15 @@
+7m31s       Normal    Started                 pod/cluster1-instance1-6cjd-0                          Started container pgbackrest
+7m31s       Normal    Pulling                 pod/cluster1-instance1-6cjd-0                          Pulling image "docker.io/percona/percona-pgbackrest:2.57.0-1"
+7m31s       Normal    Pulled                  pod/cluster1-instance1-6cjd-0                          Successfully pulled image "docker.io/percona/percona-pgbackrest:2.57.0-1" in 1.443s (1.443s including waiting). Image size: 162459685 bytes.
+7m31s       Normal    Created                 pod/cluster1-instance1-6cjd-0                          Created container: pgbackrest
+7m27s       Normal    Killing                 pod/cluster1-instance1-nnjz-0                          Stopping container database
+7m27s       Normal    Killing                 pod/cluster1-instance1-nnjz-0                          Stopping container pgbackrest
+7m27s       Normal    Killing                 pod/cluster1-instance1-nnjz-0                          Stopping container pgbackrest-config
+7m27s       Normal    Killing                 pod/cluster1-instance1-nnjz-0                          Stopping container replication-cert-copy
+7m2s        Normal    Killing                 pod/cluster1-instance1-47bj-0                          Stopping container replication-cert-copy
+7m2s        Normal    Killing                 pod/cluster1-instance1-47bj-0                          Stopping container pgbackrest-config
+7m2s        Normal    Killing                 pod/cluster1-instance1-47bj-0                          Stopping container pgbackrest
+7m2s        Normal    Killing                 pod/cluster1-instance1-47bj-0                          Stopping container database
+2m4s        Warning   Unhealthy               pod/cluster1-instance1-nnjz-0                          Readiness probe failed:
+108s        Warning   Unhealthy               pod/cluster1-instance1-47bj-0                          Readiness probe failed:
+67s         Normal    Pulling                 pod/cluster1-instance1-6cjd-0                          Pulling image "docker.io/percona/percona-distribution-postgresql:17.7-2"

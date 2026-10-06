@@ -1,0 +1,6 @@
+[13625.414793] Memory cgroup out of memory: Killed process 1389 (postgres) total-vm:502148kB, anon-rss:2788kB, file-rss:5824kB, shmem-rss:600kB, UID:26 pgtables:144kB oom_score_adj:869
+[13625.417995] Memory cgroup out of memory: OOM victim 3594 (postgres) is already exiting. Skip killing the task
+[13625.418002] Memory cgroup out of memory: OOM victim 30221 (postgres) is already exiting. Skip killing the task
+[13625.418006] Memory cgroup out of memory: OOM victim 30222 (postgres) is already exiting. Skip killing the task
+[13625.418014] Memory cgroup out of memory: Killed process 30223 (postgres) total-vm:962076kB, anon-rss:431556kB, file-rss:7132kB, shmem-rss:27020kB, UID:26 pgtables:1084kB oom_score_adj:869
+[13625.420755] Memory cgroup out of memory: OOM victim 30224 (postgres) is already exiting. Skip killing the task

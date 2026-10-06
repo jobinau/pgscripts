@@ -1,0 +1,37 @@
+2026-10-06 06:06:10.046 UTC [2838] LOG:  starting PostgreSQL 17.7 - Percona Server for PostgreSQL 17.7.1 on x86_64-pc-linux-gnu, compiled by gcc (GCC) 11.5.0 20240719 (Red Hat 11.5.0-11.0.1), 64-bit
+2026-10-06 06:06:10.058 UTC [2838] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+2026-10-06 06:06:10.069 UTC [2838] LOG:  listening on IPv6 address "::", port 5432
+2026-10-06 06:06:10.080 UTC [2838] LOG:  listening on Unix socket "/tmp/postgres/.s.PGSQL.5432"
+2026-10-06 06:06:10.092 UTC [2843] LOG:  database system was shut down at 2026-10-06 06:06:08 UTC
+2026-10-06 06:06:10.146 UTC [2843] LOG:  restored log file "00000002.history" from archive
+2026-10-06 06:06:10.270 UTC [2843] LOG:  entering standby mode
+2026-10-06 06:06:10.276 UTC [2843] LOG:  consistent recovery state reached at 0/340000A0
+2026-10-06 06:06:10.276 UTC [2843] LOG:  invalid record length at 0/340000A0: expected at least 24, got 0
+2026-10-06 06:06:10.276 UTC [2838] LOG:  database system is ready to accept read-only connections
+2026-10-06 06:06:10.455 UTC [2843] LOG:  waiting for WAL to become available at 0/340000B8
+2026-10-06 06:06:11.007 UTC [2843] LOG:  received promote request
+2026-10-06 06:06:11.007 UTC [2843] LOG:  redo is not required
+2026-10-06 06:06:11.151 UTC [2843] LOG:  selected new timeline ID: 3
+2026-10-06 06:06:11.244 UTC [2843] LOG:  restored log file "00000002.history" from archive
+2026-10-06 06:06:11.253 UTC [2843] LOG:  archive recovery complete
+2026-10-06 06:06:11.293 UTC [2841] LOG:  checkpoint starting: force
+2026-10-06 06:06:11.297 UTC [2838] LOG:  database system is ready to accept connections
+2026-10-06 06:06:11.331 UTC [2841] LOG:  checkpoint complete: wrote 3 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.018 s, sync=0.003 s, total=0.039 s; sync files=2, longest=0.002 s, average=0.002 s
+2026-10-06 06:06:12.434 P00   WARN: WAL file '00000002000000000000001A' already exists in the repo1 archive with the same checksum
+2026-10-06 06:06:12.467 P00   WARN: WAL file '00000002000000000000001B' already exists in the repo1 archive with the same checksum
+2026-10-06 06:06:12.501 P00   WARN: WAL file '00000002000000000000001C' already exists in the repo1 archive with the same checksum
+2026-10-06 06:06:12.533 P00   WARN: WAL file '00000002000000000000001D' already exists in the repo1 archive with the same checksum
+2026-10-06 06:06:12.567 P00   WARN: WAL file '00000002000000000000001E' already exists in the repo1 archive with the same checksum
+2026-10-06 06:06:12.602 P00   WARN: WAL file '00000002000000000000001F' already exists in the repo1 archive with the same checksum
+2026-10-06 06:06:12.638 P00   WARN: WAL file '000000020000000000000020' already exists in the repo1 archive with the same checksum
+2026-10-06 06:06:12.675 P00   WARN: WAL file '000000020000000000000021' already exists in the repo1 archive with the same checksum
+2026-10-06 06:06:12.714 P00   WARN: WAL file '000000020000000000000022' already exists in the repo1 archive with the same checksum
+2026-10-06 06:06:12.751 P00   WARN: WAL file '000000020000000000000023' already exists in the repo1 archive with the same checksum
+2026-10-06 06:06:12.787 P00   WARN: WAL file '000000020000000000000024' already exists in the repo1 archive with the same checksum
+2026-10-06 06:06:12.831 P00   WARN: WAL file '000000020000000000000025' already exists in the repo1 archive with the same checksum
+2026-10-06 06:06:12.874 P00   WARN: WAL file '000000020000000000000026' already exists in the repo1 archive with the same checksum
+2026-10-06 06:06:12.906 P00   WARN: WAL file '000000020000000000000027' already exists in the repo1 archive with the same checksum
+2026-10-06 06:06:12.945 P00   WARN: WAL file '000000020000000000000028' already exists in the repo1 archive with the same checksum
+2026-10-06 06:06:12.988 P00   WARN: WAL file '000000020000000000000029' already exists in the repo1 archive with the same checksum
+2026-10-06 06:06:13.032 P00   WARN: WAL file '00000002000000000000002A' already exists in the repo1 archive with the same checksum
+2026-10-06 06:06:13.069 P00   WARN: WAL file '00000002000000000000002B' already exists in the repo1 archive with the same checksum

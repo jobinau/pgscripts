@@ -1,0 +1,16 @@
+pgbench (17.7 - Percona Server for PostgreSQL 17.7.1)
+pgbench: error: client 2 aborted in command 0 (SQL) of script 0; perhaps the backend died while processing
+pgbench: error: client 3 aborted in command 0 (SQL) of script 0; perhaps the backend died while processing
+pgbench: error: client 0 aborted in command 0 (SQL) of script 0; perhaps the backend died while processing
+transaction type: /scripts/oom_sort.sql
+scaling factor: 1
+query mode: simple
+number of clients: 4
+number of threads: 4
+maximum number of tries: 1
+duration: 60 s
+number of transactions actually processed: 0
+number of failed transactions: 0 (NaN%)
+pgbench: error: client 1 aborted in command 0 (SQL) of script 0; perhaps the backend died while processing
+pgbench: error: Run was aborted; the above results are incomplete.
+command terminated with exit code 2

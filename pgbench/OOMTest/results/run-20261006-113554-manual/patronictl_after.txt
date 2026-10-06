@@ -1,0 +1,7 @@
++ Cluster: cluster1-ha (7693423267042517081) -------------------------+---------+-----------+----+-------------+-----+------------+-----+
+| Member                    | Host                                    | Role    | State     | TL | Receive LSN | Lag | Replay LSN | Lag |
++---------------------------+-----------------------------------------+---------+-----------+----+-------------+-----+------------+-----+
+| cluster1-instance1-47bj-0 | cluster1-instance1-47bj-0.cluster1-pods | Replica | streaming |  3 |  0/35000000 |   0 | 0/35000000 |   0 |
+| cluster1-instance1-6cjd-0 | cluster1-instance1-6cjd-0.cluster1-pods | Leader  | running   |  3 |             |     |            |     |
+| cluster1-instance1-nnjz-0 | cluster1-instance1-nnjz-0.cluster1-pods | Replica | streaming |  3 |  0/35000000 |   0 | 0/35000000 |   0 |
++---------------------------+-----------------------------------------+---------+-----------+----+-------------+-----+------------+-----+

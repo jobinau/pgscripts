@@ -1,0 +1,10 @@
+# Setting a key to null in a merge patch removes it, restoring the defaults.
+spec:
+  patroni:
+    dynamicConfiguration:
+      postgresql:
+        parameters:
+          work_mem: null
+          hash_mem_multiplier: null
+          maintenance_work_mem: null
+          max_parallel_workers_per_gather: null
