@@ -1,5 +1,0 @@
-Primary: cluster1-instance1-6cjd-0
-Running pgbench: oom_hashagg.sql, 3 clients, 60s
-database container restarts: 1 -> 2
-last termination reason:     OOMKilled
-primary after test:          cluster1-instance1-nnjz-0
